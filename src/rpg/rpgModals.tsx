@@ -143,21 +143,39 @@ export function RpgInventoryModal({
     ownedItems[0]?.id ?? 'item-bitacora-cero'
   );
   const [inspectNotice, setInspectNotice] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string>('TODOS');
+  const categories = ['TODOS', ...Array.from(new Set(ownedItems.map((item) => item.category)))];
+  const visibleItems = activeCategory === 'TODOS' ? ownedItems : ownedItems.filter((item) => item.category === activeCategory);
 
-  const selectedItem = RPG_ITEMS[selectedId] || ownedItems[0];
+  const selectedItem = visibleItems.find((item) => item.id === selectedId) || visibleItems[0];
   const equippedCosmetic = progressState.rpg.equippedCosmetic;
   const lanternOn = progressState.rpg.lanternActive;
 
   const renderItemSprite = (item: RpgItemSpec) => {
     const frame = item.accentHex;
-    const tool = item.usableAction === 'welder' || item.category === 'herramienta';
+    const id = item.id.toLowerCase();
+    const lamp = id.includes('lampara');
+    const scanner = id.includes('escaner') || id.includes('scanner') || id.includes('sonar');
+    const sword = id.includes('espada') || id.includes('arma');
+    const fuel = id.includes('fosforo');
+    const board = id.includes('pong') || id.includes('tabla');
+    const journal = id.includes('bitacora') || id.includes('cronica');
+    const welder = id.includes('soldador');
+    const map = id.includes('mapa');
+    const visor = id.includes('visor') || id.includes('lente');
+    const coil = id.includes('bobina') || id.includes('condensador') || id.includes('modulo') || id.includes('nucleo') || id.includes('cristal') || id.includes('prisma');
+    const tape = id.includes('cinta') || id.includes('memoria');
+    const cape = id.includes('manto');
+    const badge = id.includes('insignia');
+    const wearable = item.category === 'cosmetico';
+    const tool = (item.usableAction === 'welder' || item.category === 'herramienta') && !scanner && !sword && !lamp && !fuel && !board && !wearable && !welder && !visor && !coil && !cape;
     const keyItem = item.category === 'llave';
-    const memory = item.category === 'cinta-memoria' || item.category === 'reliquia';
+    const memory = (item.category === 'cinta-memoria' || item.category === 'reliquia') && !tape && !visor && !journal;
     const glow = item.usableAction === 'lantern' || item.category === 'cosmetico';
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true" shapeRendering="crispEdges" className="h-8 w-8 shrink-0 pixel-item-sprite">
-        <path d="M4 2h16v2h2v16h-2v2H4v-2H2V4h2z" fill="#070b14" />
-        <path d="M5 4h14v2h2v12h-2v2H5v-2H3V6h2z" fill="#14243a" />
+        <path d="M4 2h16v2h2v16h-2v2H4v-2H2V4h2z" fill="#25180f" />
+        <path d="M5 4h14v2h2v12h-2v2H5v-2H3V6h2z" fill="#5a3c27" />
         <path d="M6 6h12v1H6z" fill={frame} opacity=".8" />
         {tool && <>
           <path d="M6 8h5v2h2v2h2v2h2v2h-3v-2h-2v-2h-2v-2H6z" fill="#d8be88" />
@@ -172,12 +190,26 @@ export function RpgInventoryModal({
           <path d="M8 9h8v1H8zM8 12h6v1H8zM8 15h8v2H8z" fill={frame} />
           <path d="M16 11h2v2h-2z" fill="#fef08a" />
         </>}
-        {!tool && !keyItem && !memory && <>
+        {!tool && !keyItem && !memory && !lamp && !scanner && !sword && !fuel && !board && !wearable && !journal && !welder && !map && !visor && !coil && !tape && !cape && !badge && <>
           <path d="M9 6h6v2h2v9h-2v2H9v-2H7V8h2z" fill="#d8be88" />
           <path d="M10 8h4v2h2v5h-2v2h-4v-2H8v-5h2z" fill={frame} />
           {glow && <path d="M11 10h2v4h-2zM9 11h2v2H9zM14 11h2v2h-2z" fill="#fff4b8" />}
           {!glow && <path d="M10 11h4v3h-4z" fill="#07111e" />}
         </>}
+        {lamp && <><path d="M9 5h6v2l2 2v10l-2 2H9l-2-2V9l2-2z" fill="#8a5329"/><path d="M9 12h6v6H9z" fill="#e4a52d"/><path d="M11 13h2v4h-2z" fill="#fff3b0"/><path d="M8 19h8v2H8z" fill="#d7c39b"/></>}
+        {scanner && <><path d="M6 7h12v11H6z" fill="#394d48"/><path d="M8 9h8v5H8z" fill="#a6d6a0"/><path d="M9 11h2v1H9zM12 10h1v3h-1zM14 11h2v1h-2z" fill="#315f42"/><path d="M9 19h6v2H9z" fill="#d8be88"/><path d="M18 8h2v2h-2z" fill={frame}/></>}
+        {sword && <><path d="M15 4h5v2l-9 10-2-2z" fill="#e5f2ee"/><path d="M8 13l4 4-2 2-4-4z" fill="#a7d2d5"/><path d="M5 15l5 5-2 2-5-5z" fill="#9b5d35"/><path d="M12 12l2 2-2 2-2-2z" fill="#f5cf6a"/></>}
+        {fuel && <><path d="M9 5h6v2l2 2v10l-2 2H9l-2-2V9l2-2z" fill="#c3d2b5"/><path d="M9 12h6v6H9z" fill="#e4a52d"/><path d="M11 8h2v2h-2z" fill="#f6e3a2"/><path d="M10 14h2v2h-2zM14 13h1v3h-1z" fill="#fff0a3"/></>}
+        {board && <><path d="M10 4h4v2h2v12h-2v2h-4v-2H8V6h2z" fill="#e0a84c"/><path d="M10 7h4v9h-4z" fill="#f0d99e"/><path d="M9 5h2v2H9zM13 16h2v2h-2z" fill="#6a3f2b"/><path d="M9 10h6v2H9z" fill={frame}/></>}
+        {wearable && <><path d="M8 8l4-2 4 2 3 3-2 3-2-2v6H9v-6l-2 2-2-3z" fill="#d8be88"/><path d="M10 8h4v8h-4z" fill={frame}/><path d="M11 9h2v2h-2z" fill="#f8e7b0"/></>}
+        {journal && <><path d="M6 5h13v15H6z" fill="#8e5532" stroke="#d6ac68" strokeWidth="1"/><path d="M8 7h9v11H8z" fill="#e6d2a3"/><path d="M10 9h5v1h-5zM10 12h6v1h-6zM10 15h4v1h-4z" fill={frame}/><path d="M5 6h2v13H5z" fill="#c68c4d"/></>}
+        {welder && <><path d="M5 7h5v3H8v3h4v-3h4v3h3v3h-6v3h-5v-3h3v-3H7v-3H5z" fill="#b9c5bc"/><path d="M14 6h5v2h-3v3h-3z" fill="#f2c86d"/><path d="M17 4h2v2h-2z" fill="#ffefae"/></>}
+        {map && <><path d="M5 6l5-2 5 2 4-2v14l-4 2-5-2-5 2z" fill="#d7c18b" stroke="#5d462b" strokeWidth="1"/><path d="M10 5v13M15 7v13" stroke="#7a5736" strokeWidth="1"/><path d="M11 11h2v2h-2zM12 9h1v2h-1z" fill="#bd5941"/></>}
+        {visor && <><path d="M5 8h4V6h6v2h4v8h-3l-2 3h-4l-2-3H5z" fill="#b8a887"/><path d="M7 10h4v4H7zM13 10h4v4h-4z" fill="#7fe1d2" stroke="#483527" strokeWidth="1"/><path d="M11 11h2v2h-2z" fill="#e0c071"/></>}
+        {coil && <><path d="M8 4h8v3h3v10h-3v3H8v-3H5V7h3z" fill="#51436e" stroke="#c8a7ed" strokeWidth="1"/><path d="M10 7h4v2h2v6h-2v2h-4v-2H8V9h2z" fill={frame}/><path d="M11 9h2v2h-2zM13 12h2v2h-2zM9 13h2v2H9z" fill="#fff0b2"/></>}
+        {tape && <><path d="M5 7h14v11H5z" fill="#d0c7a9" stroke="#524331" strokeWidth="1"/><path d="M7 9h10v7H7z" fill="#40362b"/><circle cx="10" cy="12.5" r="2" fill="#d4b66b"/><circle cx="14" cy="12.5" r="2" fill="#d4b66b"/><path d="M11 12h2v1h-2z" fill={frame}/><path d="M7 17h10v1H7z" fill={frame}/></>}
+        {cape && <><path d="M9 5h6l2 3 3 2-3 10H7L4 10l3-2z" fill="#d6bb82" stroke="#5a3b2b" strokeWidth="1"/><path d="M10 7h4l2 3-2 8h-4l-2-8z" fill={frame}/><path d="M11 8h2v2h-2z" fill="#f4deaa"/></>}
+        {badge && <><path d="M8 5h8v3l3 3-7 10-7-10 3-3z" fill="#e3bd6d" stroke="#714d2e" strokeWidth="1"/><path d="M10 8h4v2h2v2h-2v2h-4v-2H8v-2h2z" fill={frame}/><path d="M11 10h2v2h-2z" fill="#fff0b1"/></>}
         <path d="M4 20h3v1H4zM18 4h2v1h-2z" fill="#fff4b8" />
       </svg>
     );
@@ -235,7 +267,17 @@ export function RpgInventoryModal({
       }}
       className={`fixed inset-0 z-50 bg-[#020611]/55 flex items-center justify-center p-2 sm:p-4 overflow-y-auto inventory-backdrop ${closing ? 'inventory-backdrop-out' : ''}`}
     >
-      <div className={`gbc-retro-box inventory-panel max-w-2xl w-full max-h-[88vh] overflow-y-auto p-3 sm:p-4 space-y-2.5 my-auto ${closing ? 'inventory-panel-out' : ''}`}>
+      <div className={`inventory-panel backpack-frame max-w-5xl w-full max-h-[94vh] overflow-y-auto p-3 sm:p-5 space-y-3 my-auto ${closing ? 'inventory-panel-out' : ''}`}>
+        <svg aria-hidden="true" viewBox="0 0 96 72" className="backpack-illustration hidden sm:block w-24 h-[4.5rem] float-right ml-3" shapeRendering="crispEdges">
+          <path d="M28 12h40v8h8v42H20V20h8z" fill="#4e2c1f" stroke="#20130f" strokeWidth="4"/>
+          <path d="M32 16h32v8h6v34H26V24h6z" fill="#9a6037" stroke="#d5a05a" strokeWidth="3"/>
+          <path d="M34 22h28v5H34zM30 32h36v20H30z" fill="#70432c" stroke="#c58c4f" strokeWidth="3"/>
+          <path d="M36 35h24v13H36z" fill="#b7773f" stroke="#e0b46a" strokeWidth="2"/>
+          <path d="M44 34h8v7h-8z" fill="#e3c783" stroke="#59402a" strokeWidth="2"/>
+          <path d="M20 29h7v22h-7zM69 29h7v22h-7z" fill="#d4ad72" stroke="#48301f" strokeWidth="2"/>
+          <path d="M40 55h16v4H40zM43 8h10v7H43z" fill="#473127" stroke="#d4ad72" strokeWidth="2"/>
+          <path d="M32 28h7v3h-7zM57 28h7v3h-7zM31 51h7v3h-7zM58 51h7v3h-7z" fill="#e2c78e"/>
+        </svg>
         <div className="flex items-center justify-between gap-2 border-b-2 border-dashed border-white/25 pb-2">
           <div>
             <div className="flex items-center gap-2 text-[11px] font-mono tracking-widest text-[#f2c94c] uppercase">
@@ -243,7 +285,7 @@ export function RpgInventoryModal({
               <span>MOCHILA DEL ARQUITECTO · INVENTARIO [ENTER]</span>
             </div>
             <h2 className="font-mono text-base sm:text-lg font-bold text-white mt-0.5">
-              Inventario ({ownedItems.length} / {Object.keys(RPG_ITEMS).length})
+              Equipo reunido · {ownedItems.length} objetos
             </h2>
           </div>
           <button
@@ -261,7 +303,7 @@ export function RpgInventoryModal({
 
         {/* Resumen de Ubicación Actual y Estadísticas de Partida */}
         {(areaInfo || statsSummary) && (
-          <div className="border-2 border-white/20 bg-[#050918]/95 p-2 space-y-2 font-mono">
+          <div className="backpack-ledger p-2 space-y-2 font-mono">
             {areaInfo && (
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 border-b border-white/15 pb-2.5">
                 <div className="min-w-0">
@@ -401,10 +443,20 @@ export function RpgInventoryModal({
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Categorías de la mochila">
+          {categories.map((category) => (
+            <button key={category} type="button" role="tab" aria-selected={activeCategory === category} onClick={() => setActiveCategory(category)} className={`backpack-tab px-2.5 py-1 text-[9px] font-mono uppercase ${activeCategory === category ? 'backpack-tab-active' : ''}`}>
+              {category === 'TODOS' ? `TODO · ${ownedItems.length}` : category.replaceAll('-', ' ')}
+            </button>
+          ))}
+          {ownedIds.includes('item-polvo-fosforo') && <span className="ml-auto backpack-fuel px-2.5 py-1 text-[9px] font-mono">FÓSFORO ÁMBAR · VUELO</span>}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
           {/* Lista de objetos obtenidos */}
-          <div className="md:col-span-7 grid grid-cols-3 sm:grid-cols-4 gap-1 max-h-44 overflow-y-auto pr-1 inventory-slots">
-            {ownedItems.map((item) => {
+          <div className="md:col-span-7 backpack-pocket">
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-1.5 max-h-[42vh] overflow-y-auto p-2 inventory-slots">
+            {visibleItems.map((item) => {
               const isSelected = selectedItem?.id === item.id;
               const isEquipped = equippedCosmetic === item.id;
               const isLanternActive =
@@ -437,10 +489,11 @@ export function RpgInventoryModal({
                 </button>
               );
             })}
+            </div>
           </div>
 
           {/* Inspector y botón de uso real */}
-          <div className="md:col-span-5 border-2 border-white/25 bg-[#060a18] p-2.5 flex flex-col justify-between space-y-2 inventory-inspector">
+          <div className="md:col-span-5 backpack-inspector p-3 flex flex-col justify-between space-y-2 inventory-inspector">
             {selectedItem && (
               <>
                 <div className="space-y-2">
@@ -464,6 +517,7 @@ export function RpgInventoryModal({
                   <p className="text-[11px] font-mono text-slate-200 leading-snug">
                     {selectedItem.description}
                   </p>
+                  <p className="text-[10px] font-mono text-amber-100/90">Cantidad: 1 · Identificador: {selectedItem.shortCode}</p>
                   <p className="text-[10px] font-mono text-amber-200/90 pt-1 border-t border-white/15 leading-snug">
                     Uso: {selectedItem.usageHint}
                   </p>

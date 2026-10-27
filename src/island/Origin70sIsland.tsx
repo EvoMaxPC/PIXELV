@@ -23,7 +23,6 @@ import {
   SPACE_INVADERS_UNLOCK_SCORE,
 } from '../memories/progressionState';
 import {
-  BREAKOUT_CABINET_INTERACT,
   BROKEN_RELAY_MECHANISM,
   COASTAL_SUBTERRANEAN_TUNNELS,
   DK_CABINET_80S_INTERACT,
@@ -54,12 +53,14 @@ import {
   WATERFALL_SECRET_ENTRANCE,
 } from '../rpg/rpgContent';
 import { RpgInventoryModal, RpgQuestsModal } from '../rpg/rpgModals';
-import { renderSubAreaFrame } from '../rpg/subAreaRenderer';
+import type { AvatarAppearance } from '../avatar/avatarOptions';
+import { CastleBossCombatState, renderSubAreaFrame } from '../rpg/subAreaRenderer';
 import {
   DISTANT_DECADE_VISTAS,
   ISLAND_DIAMONDS,
   ISLAND_ECHOES,
   ISLAND_KEY_COORDS,
+  NORTH_ARCADE_LAYOUT,
   ISLAND_NPCS,
   ISLAND_SWITCHES,
   ISLAND_WALKABLE_RECTS,
@@ -69,7 +70,14 @@ import {
   ISLAND_ZONES,
   IslandZoneId,
   isPointWalkableOnIsland,
+  isBlockedByIslandRouteRail,
+  isBlockedByVolcanicGuardGate,
+  isBreakoutLegendStoneBlocked,
+  isVolcanicArcadeCabinetBlocked,
+  isNorthArcadeCabinetBlocked,
   isSouthShortcutUnlocked,
+  VOLCANIC_ARCADE_LAYOUT,
+  VOLCANIC_GUARD_ID,
 } from './island70sData';
 import {
   IslandPickupBurst,
@@ -91,14 +99,20 @@ export interface Origin70sIslandProps {
   skinColor: string;
   hairColor: string;
   shirtColor: string;
+  appearance: AvatarAppearance;
   allUnlocked: boolean;
   arrivalMode: Island70sArrivalMode;
   progressState: PixelverseProgressState;
   onEnterPong: () => void;
   onEnterBreakout: () => void;
+  onEnterBreakoutFromNorth?: () => void;
   onEnterGlitchTrail: () => void;
   onEnterSpaceInvaders: () => void;
   onEnterDonkeyKong: () => void;
+  onEnterAsteroids?: () => void;
+  onEnterSeaWolf?: () => void;
+  onEnterTank?: () => void;
+  onEnterLunarLander?: () => void;
   onCollectDiamond: (diamondId: string) => void;
   onVisitZone: (zoneId: IslandZoneId) => void;
   onDiscoverEcho: (echoId: string) => void;
@@ -165,7 +179,19 @@ interface InteractivePromptTarget {
     | 'broken-relay'
     | 'chest'
     | 'examinable'
-    | 'sub-exit';
+    | 'sub-exit'
+    | 'north-arcade'
+    | 'volcanic-arcade'
+    | 'breakout-stone'
+    | 'castle-entrance'
+    | 'castle-seal'
+    | 'castle-shortcut-door'
+    | 'castle-valve'
+    | 'castle-lectern'
+    | 'castle-tower-lever'
+    | 'castle-boss-hit'
+    | 'castle-boss-conduit'
+    | 'castle-ship-launch';
   id: string;
   label: string;
   actionLabel: string;
@@ -198,18 +224,41 @@ const ANIMATION_STATES: Record<FacingDirection, number[]> = {
 
 const TOTAL_70S_DIAMONDS = 9; // 5 en la Gran Isla + 4 en El Sendero del Glitch Perdido
 
+type IslandPowerId = 'pong-hoverboard' | 'shifting-blade' | 'orbital-dash' | 'sonar-pulse';
+
+function isIslandPowerUnlocked(power: IslandPowerId, progress: PixelverseProgressState, allUnlocked: boolean): boolean {
+  if (allUnlocked) return true;
+  const items = progress.rpg.inventoryItems;
+  switch (power) {
+    case 'pong-hoverboard':
+      return progress.island70s.abilitiesUnlocked.includes('pong-hoverboard');
+    case 'shifting-blade':
+      return items.includes('item-espada-cambiante');
+    case 'orbital-dash':
+      return items.includes('item-modulo-orbital');
+    case 'sonar-pulse':
+      return items.includes('item-sonar-profundidad');
+  }
+}
+
 export function Origin70sIsland({
   skinColor,
   hairColor,
   shirtColor,
+  appearance,
   allUnlocked,
   arrivalMode,
   progressState,
   onEnterPong,
   onEnterBreakout,
+  onEnterBreakoutFromNorth,
   onEnterGlitchTrail,
   onEnterSpaceInvaders,
   onEnterDonkeyKong,
+  onEnterAsteroids,
+  onEnterSeaWolf,
+  onEnterTank,
+  onEnterLunarLander,
   onCollectDiamond,
   onVisitZone,
   onDiscoverEcho,
@@ -276,6 +325,23 @@ export function Origin70sIsland({
         { southShortcut: southShortcutActive, gargantaBridge: glitchTrailCleared }
       ) &&
       !isBlockedByExteriorBuilding(
+        progressState.island70s.lastIslandPos.x,
+        progressState.island70s.lastIslandPos.y
+      ) &&
+      !isBlockedByIslandRouteRail(
+        progressState.island70s.lastIslandPos.x,
+        progressState.island70s.lastIslandPos.y
+      ) &&
+      !isBlockedByVolcanicGuardGate(
+        progressState.island70s.lastIslandPos.x,
+        progressState.island70s.lastIslandPos.y,
+        allUnlocked || progressState.island70s.talkedNpcIds.includes(VOLCANIC_GUARD_ID)
+      ) &&
+      !isVolcanicArcadeCabinetBlocked(
+        progressState.island70s.lastIslandPos.x,
+        progressState.island70s.lastIslandPos.y
+      ) &&
+      !isBreakoutLegendStoneBlocked(
         progressState.island70s.lastIslandPos.x,
         progressState.island70s.lastIslandPos.y
       )
@@ -380,12 +446,14 @@ export function Origin70sIsland({
     y: number;
     facingDir: FacingDirection;
     interactAnim: number;
+    sprinting?: boolean;
     teleportPending: { x: number; y: number; facingDir?: FacingDirection } | null;
   }>({
     x: initSetupRef.current.x,
     y: initSetupRef.current.y,
     facingDir: 'down',
     interactAnim: 0,
+    sprinting: false,
     teleportPending: null,
   });
 
@@ -394,6 +462,31 @@ export function Origin70sIsland({
   const scannerPulseRef = useRef<{ active: boolean; elapsed: number }>({
     active: false,
     elapsed: 0,
+  });
+  const orbitalDashRef = useRef<{ remaining: number; cooldown: number; dx: number; dy: number }>({
+    remaining: 0,
+    cooldown: 0,
+    dx: 0,
+    dy: 1,
+  });
+  const lastMoveDirectionRef = useRef({ x: 0, y: 1 });
+  const phosphorusStockRef = useRef(100);
+
+  // Mecanismos y combate de El Castillo del Rey Corrupto
+  const towerSealsOrderRef = useRef<string[]>([]);
+  const hydraulicValvesOrderRef = useRef<string[]>([]);
+  const chroniclesPlacedRef = useRef<number[]>([]);
+  const towerLeversRef = useRef<{ left: boolean; right: boolean }>({ left: false, right: false });
+  const bossCombatStateRef = useRef<CastleBossCombatState>({
+    phase: 1,
+    bossHp: 100,
+    maxHp: 100,
+    dkPos: { x: 490, y: 220 },
+    barrels: [],
+    shockwaves: [],
+    conduitOverloads: [false, false],
+    dkPurified: false,
+    attackTimer: 0,
   });
 
   const [areaFadeActive, setAreaFadeActive] = useState<boolean>(false);
@@ -409,6 +502,30 @@ export function Origin70sIsland({
   } | null>(null);
   const [nearbyPrompt, setNearbyPrompt] = useState<InteractivePromptTarget | null>(null);
   const [activeDialog, setActiveDialog] = useState<ActiveDialogModal | null>(null);
+  const activeDialogRef = useRef(activeDialog);
+  activeDialogRef.current = activeDialog;
+  const advanceDialogueRef = useRef<() => void>(() => {});
+  const [dialogueVisibleChars, setDialogueVisibleChars] = useState(0);
+  const dialogueFullText = activeDialog?.paragraphs.join('\n\n') ?? '';
+  useEffect(() => {
+    if (!activeDialog) {
+      setDialogueVisibleChars(0);
+      return;
+    }
+    setDialogueVisibleChars(0);
+    let shown = 0;
+    const timer = window.setInterval(() => {
+      shown = Math.min(dialogueFullText.length, shown + 3);
+      setDialogueVisibleChars(shown);
+      if (shown >= dialogueFullText.length) window.clearInterval(timer);
+    }, 18);
+    return () => window.clearInterval(timer);
+  }, [activeDialog, dialogueFullText]);
+  advanceDialogueRef.current = () => {
+    if (!activeDialog) return;
+    if (dialogueVisibleChars < dialogueFullText.length) setDialogueVisibleChars(dialogueFullText.length);
+    else setActiveDialog(null);
+  };
   const [codexOpen, setCodexOpen] = useState<boolean>(false);
   const [inventoryOpen, setInventoryOpen] = useState<boolean>(false);
   const [inventoryClosing, setInventoryClosing] = useState<boolean>(false);
@@ -418,6 +535,25 @@ export function Origin70sIsland({
   const [toastBanner, setToastBanner] = useState<string | null>(null);
   const [minimapOpen, setMinimapOpen] = useState<boolean>(false);
   const [flightStatusText, setFlightStatusText] = useState<string | null>(null);
+  const [volcanicGuardDialog, setVolcanicGuardDialog] = useState<'choice' | 'no' | 'yes' | null>(null);
+  const volcanicGuardDialogRef = useRef<'choice' | 'no' | 'yes' | null>(null);
+  const [volcanicGuardChoice, setVolcanicGuardChoice] = useState<'yes' | 'no'>('yes');
+  const volcanicGuardChoiceRef = useRef<'yes' | 'no'>('yes');
+  const volcanicGuardRetryLockedRef = useRef(false);
+  const volcanicGuardTimerRef = useRef<number | null>(null);
+  const [breakoutSwordExtracting, setBreakoutSwordExtracting] = useState(false);
+  const breakoutSwordExtractionStartedRef = useRef(false);
+  const breakoutSwordExtractionMotionRef = useRef<{ elapsed: number; duration: number; fromX: number; fromY: number; toX: number; toY: number } | null>(null);
+
+  // Sistema de los 4 Poderes Principales y Selector de Legado
+  const [activePower, setActivePower] = useState<'pong-hoverboard' | 'shifting-blade' | 'orbital-dash' | 'sonar-pulse'>('pong-hoverboard');
+  const [bladeMode, setBladeMode] = useState<'short' | 'extended' | 'gun'>('short');
+  const [phosphorusStock, setPhosphorusStock] = useState<number>(100);
+  const [dashCooldown, setDashCooldown] = useState<number>(0);
+  const [weaponSwingActive, setWeaponSwingActive] = useState<boolean>(false);
+  const [sonarActive, setSonarActive] = useState<boolean>(false);
+  const [legacyPowerModalOpen, setLegacyPowerModalOpen] = useState<boolean>(false);
+  const [selectedLegacyPower, setSelectedLegacyPower] = useState<string | null>(null);
   const [playerMiniPos, setPlayerMiniPos] = useState<{ x: number; y: number }>({
     x: initSetupRef.current.x,
     y: initSetupRef.current.y,
@@ -435,6 +571,8 @@ export function Origin70sIsland({
   const anyModalOpen =
     Boolean(externalModalOpen) ||
     Boolean(activeDialog) ||
+    Boolean(volcanicGuardDialog) ||
+    breakoutSwordExtracting ||
     codexOpen ||
     inventoryOpen ||
     inventoryClosing ||
@@ -446,6 +584,7 @@ export function Origin70sIsland({
     skinColor,
     hairColor,
     shirtColor,
+    appearance,
     allUnlocked,
     pongRestored,
     breakoutRestored,
@@ -456,6 +595,7 @@ export function Origin70sIsland({
     southShortcutActive,
     progressState,
     modalOpen: anyModalOpen,
+    breakoutSwordExtracting,
     inventoryOpen,
     inventoryClosing,
     chronoWarpActive,
@@ -464,6 +604,7 @@ export function Origin70sIsland({
     skinColor,
     hairColor,
     shirtColor,
+    appearance,
     allUnlocked,
     pongRestored,
     breakoutRestored,
@@ -474,6 +615,7 @@ export function Origin70sIsland({
     southShortcutActive,
     progressState,
     modalOpen: anyModalOpen,
+    breakoutSwordExtracting,
     inventoryOpen,
     inventoryClosing,
     chronoWarpActive,
@@ -482,9 +624,14 @@ export function Origin70sIsland({
   const callbacksRef = useRef({
     onEnterPong,
     onEnterBreakout,
+    onEnterBreakoutFromNorth,
     onEnterGlitchTrail,
     onEnterSpaceInvaders,
     onEnterDonkeyKong,
+    onEnterAsteroids,
+    onEnterSeaWolf,
+    onEnterTank,
+    onEnterLunarLander,
     onCollectDiamond,
     onVisitZone,
     onDiscoverEcho,
@@ -510,9 +657,14 @@ export function Origin70sIsland({
   callbacksRef.current = {
     onEnterPong,
     onEnterBreakout,
+    onEnterBreakoutFromNorth,
     onEnterGlitchTrail,
     onEnterSpaceInvaders,
     onEnterDonkeyKong,
+    onEnterAsteroids,
+    onEnterSeaWolf,
+    onEnterTank,
+    onEnterLunarLander,
     onCollectDiamond,
     onVisitZone,
     onDiscoverEcho,
@@ -535,6 +687,49 @@ export function Origin70sIsland({
     onToggleLantern,
     onArrivalSequenceFinished,
   };
+
+  const resolveVolcanicGuardChoice = useCallback((choice: 'yes' | 'no') => {
+    if (volcanicGuardDialogRef.current !== 'choice') return;
+    const accepted = choice === 'yes';
+    if (volcanicGuardTimerRef.current !== null) window.clearTimeout(volcanicGuardTimerRef.current);
+    if (accepted) {
+      callbacksRef.current.onTalkNpc(VOLCANIC_GUARD_ID);
+      setVolcanicGuardDialog('yes');
+      volcanicGuardDialogRef.current = 'yes';
+      retroAudio.npcBlip(1.16);
+    } else {
+      volcanicGuardRetryLockedRef.current = true;
+      setVolcanicGuardDialog('no');
+      volcanicGuardDialogRef.current = 'no';
+      retroAudio.npcBlip(0.74);
+    }
+    volcanicGuardTimerRef.current = window.setTimeout(() => {
+      setVolcanicGuardDialog(null);
+      volcanicGuardDialogRef.current = null;
+      volcanicGuardTimerRef.current = null;
+    }, 1900);
+  }, []);
+
+  const startBreakoutSwordExtraction = useCallback(() => {
+    if (breakoutSwordExtractionStartedRef.current) return;
+    breakoutSwordExtractionStartedRef.current = true;
+    callbacksRef.current.onDiscoverSecret('breakout-sword-extracted');
+    const player = playerPosBridgeRef.current;
+    breakoutSwordExtractionMotionRef.current = {
+      elapsed: 0,
+      duration: 0.62,
+      fromX: player.x,
+      fromY: player.y,
+      toX: VOLCANIC_ARCADE_LAYOUT.breakoutStone.x - 34,
+      toY: VOLCANIC_ARCADE_LAYOUT.breakoutStone.y + 32,
+    };
+    setBreakoutSwordExtracting(true);
+    retroAudio.secretFound();
+    window.setTimeout(() => {
+      setBreakoutSwordExtracting(false);
+      breakoutSwordExtractionMotionRef.current = null;
+    }, 1900);
+  }, []);
 
   const performIslandManualSave = useCallback((): string => {
     const curArea = activeAreaRef.current;
@@ -577,7 +772,7 @@ export function Origin70sIsland({
 
   // Vuelos exclusivamente internos dentro de la misma Isla de los 70
   const vehicleFlightRef = useRef<{
-    type: 'none' | 'pong-to-garganta' | 'garganta-to-pong' | 'shuttle-landing';
+    type: 'none' | 'pong-to-garganta' | 'garganta-to-pong' | 'shuttle-landing' | 'hoverboard';
     elapsed: number;
     duration: number;
   }>({
@@ -613,6 +808,100 @@ export function Origin70sIsland({
       setToastBanner((prev) => (prev === msg ? null : prev));
     }, 3900);
   }, []);
+
+  useEffect(() => {
+    if (!breakoutRestored || activeAreaRef.current !== 'exterior-70s' || breakoutSwordExtractionStartedRef.current) return;
+    if (progressState.rpg.discoveredSecretIds.includes('breakout-sword-extracted')) {
+      breakoutSwordExtractionStartedRef.current = true;
+      return;
+    }
+    const player = playerPosBridgeRef.current;
+    if (Math.hypot(player.x - VOLCANIC_ARCADE_LAYOUT.breakoutStone.x, player.y - VOLCANIC_ARCADE_LAYOUT.breakoutStone.y) > 200) return;
+    startBreakoutSwordExtraction();
+  }, [activeAreaId, breakoutRestored, progressState.rpg.discoveredSecretIds, startBreakoutSwordExtraction]);
+
+  const executeActivePower = useCallback((power: IslandPowerId = activePower) => {
+    if (latestStateRef.current.modalOpen || areaTransitionLockRef.current) return;
+    const state = latestStateRef.current;
+    if (!isIslandPowerUnlocked(power, state.progressState, state.allUnlocked)) {
+      retroAudio.npcBlip(0.7);
+      showToast('Este poder todavía está bloqueado.');
+      return;
+    }
+
+    if (power === 'pong-hoverboard') {
+      if (vehicleFlightRef.current.type === 'hoverboard') {
+        vehicleFlightRef.current = { type: 'none', elapsed: 0, duration: 0 };
+        retroAudio.hoverboardLaunch();
+        showToast('Paleta Voladora DESACTIVADA · Vuelo pausado');
+      } else {
+        if (phosphorusStockRef.current <= 0 && !state.allUnlocked) {
+          retroAudio.npcBlip(0.7);
+          showToast('¡Sin Fósforo Ámbar! Junta recargas en el Santuario de Pong.');
+          return;
+        }
+        vehicleFlightRef.current = { type: 'hoverboard', elapsed: 0, duration: 9999 };
+        retroAudio.hoverboardLaunch();
+        showToast('¡Paleta Voladora de Pong ACTIVADA! Planeando sobre la isla.');
+      }
+    } else if (power === 'shifting-blade') {
+      retroAudio.laserShoot();
+      playerPosBridgeRef.current.interactAnim = 0.4;
+      setWeaponSwingActive(true);
+      window.setTimeout(() => setWeaponSwingActive(false), 360);
+      const pos = playerPosBridgeRef.current;
+      const boss = bossCombatStateRef.current;
+      const facing = pos.facingDir ?? 'down';
+      const vx = facing === 'left' ? -1 : facing === 'right' ? 1 : 0;
+      const vy = facing === 'up' ? -1 : facing === 'down' ? 1 : 0;
+      const dx = boss.dkPos.x - pos.x;
+      const dy = boss.dkPos.y - pos.y;
+      const reach = bladeMode === 'short' ? 74 : bladeMode === 'extended' ? 142 : 205;
+      if (activeAreaRef.current === 'castle-trono' && Math.hypot(dx, dy) <= reach && dx * vx + dy * vy > 0) {
+        if (boss.phase === 1) {
+          boss.bossHp = 66; boss.phase = 2; retroAudio.secretFound();
+          showToast('Impacto directo. Sobrecargá los dos acumuladores laterales.');
+        } else if (boss.phase === 2 && boss.conduitOverloads[0] && boss.conduitOverloads[1]) {
+          boss.bossHp = 33; boss.phase = 3; retroAudio.secretFound();
+          showToast('Coraza disipada. Destruí el núcleo digital.');
+        } else if (boss.phase === 2) {
+          retroAudio.npcBlip(0.7); showToast('La coraza desvía el ataque. Sobrecargá ambos acumuladores.');
+        } else if (boss.phase === 3) {
+          boss.bossHp = 0; boss.phase = 4; boss.dkPurified = true;
+          callbacksRef.current.onDiscoverSecret('castle-donkey-kong-freed');
+          callbacksRef.current.onOpenChest('chest-victory-hangar', ['item-llave-hangar-dk']);
+          retroAudio.questComplete(); showToast('Núcleo destruido. Donkey Kong ha sido liberado.');
+        }
+      }
+      const modeName = bladeMode === 'short' ? 'Espada Corta' : bladeMode === 'extended' ? 'Espada Extensible 4-Bandas' : 'Pistola de Energía';
+      showToast(`¡Ataque de ${modeName} ejecutado!`);
+    } else if (power === 'orbital-dash') {
+      if (orbitalDashRef.current.cooldown > 0) { showToast('Dash orbital recargando.'); return; }
+      const pos = playerPosBridgeRef.current;
+      const facing = pos.facingDir ?? 'down';
+      const last = lastMoveDirectionRef.current;
+      const len = Math.hypot(last.x, last.y);
+      const fallback = facing === 'left' ? { x: -1, y: 0 } : facing === 'right' ? { x: 1, y: 0 } : facing === 'up' ? { x: 0, y: -1 } : { x: 0, y: 1 };
+      orbitalDashRef.current = { remaining: 176, cooldown: 1.2, dx: len ? last.x / len : fallback.x, dy: len ? last.y / len : fallback.y };
+      retroAudio.dashImpulse();
+      playerPosBridgeRef.current.sprinting = true;
+      const px = playerPosBridgeRef.current.x;
+      const py = playerPosBridgeRef.current.y;
+      if (Math.hypot(px - LABYRINTH_1976_ENTRANCE.x, py - LABYRINTH_1976_ENTRANCE.y) < 140 || Math.hypot(px - 1420, py - 460) < 140) {
+        retroAudio.alienExplode();
+        callbacksRef.current.onDiscoverSecret('glitch-entrance-shattered');
+        showToast('¡DASH ORBITAL destruye la barrera de glitch! Acceso al Sendero Glitch ABIERTO.');
+      } else {
+        showToast('¡DASH ORBITAL de Asteroids ejecutado!');
+      }
+    } else if (power === 'sonar-pulse') {
+      retroAudio.scannerPing(true);
+      scannerPulseRef.current = { active: true, elapsed: 0 };
+      setSonarActive(true);
+      window.setTimeout(() => setSonarActive(false), 1500);
+      showToast('¡PULSO SONAR de Sea Wolf emitido! Revelando secretos y mecanismos en 220px...');
+    }
+  }, [activePower, bladeMode, showToast]);
 
   const updatePlayerAnimation = useCallback(
     (direction: FacingDirection, timer: number, isWalking: boolean, isSprinting: boolean): number => {
@@ -805,7 +1094,7 @@ export function Origin70sIsland({
     (targetOverride?: InteractivePromptTarget | null) => {
       const target = targetOverride ?? nearbyPromptRef.current;
       if (!target) return;
-      if (vehicleFlightRef.current.type !== 'none' || areaTransitionLockRef.current) {
+      if ((vehicleFlightRef.current.type !== 'none' && vehicleFlightRef.current.type !== 'hoverboard') || areaTransitionLockRef.current) {
         return;
       }
 
@@ -1587,6 +1876,101 @@ export function Origin70sIsland({
           });
           return;
         }
+
+        if (snpc.id === 'npc-centinela-galahad') {
+          setActiveDialog({
+            category: snpc.role.toUpperCase(),
+            title: snpc.name,
+            subtitle: 'Murallas del Destierro · Patio de Armas',
+            paragraphs: [
+              '«¡Saludos, noble viajero del píxel! Soy Sir Galahad, el último centinela leal a Donkey Kong.»',
+              '«Super KOOPA ha sellado el acceso al interior de la fortaleza con cuatro pilares rúnicos: Sol ☀, Luna ☾, Estrella ★ y Rayo ⚡.»',
+              '«Examina la estela del centro y activa los cuatro pedestales en ese orden exacto para hacer descender las pesadas vigas del puente levadizo.»',
+            ],
+            hint: 'Activa Sol ☀ → Luna ☾ → Estrella ★ → Rayo ⚡ para bajar el puente levadizo.',
+            accentHex: snpc.palette.glow,
+          });
+          return;
+        }
+
+        if (snpc.id === 'npc-cartografo-gunter') {
+          setActiveDialog({
+            category: snpc.role.toUpperCase(),
+            title: snpc.name,
+            subtitle: 'Laberinto de las Doce Puertas · Explorador',
+            paragraphs: [
+              '«¡Por todos los mapas antiguos! Me llamo Gunter y llevo horas atascado en esta telaraña de compuertas.»',
+              '«Las doce puertas te confunden si caminas a ciegas. La clave está en seguir la ruta cronológica de las décadas: Computer Space (1971) → Pong (1972) → Breakout (1976) → Space Invaders (1978).»',
+              '«Si ves la reja con cerrojo mecánico en la pared este, interactúa con ella para habilitar un atajo permanente.»',
+            ],
+            hint: 'Sigue la ruta 1971 → 1972 → 1976 → 1978 para alcanzar la escalera a los Cimientos.',
+            accentHex: snpc.palette.glow,
+          });
+          return;
+        }
+
+        if (snpc.id === 'npc-ingeniero-volcan') {
+          setActiveDialog({
+            category: snpc.role.toUpperCase(),
+            title: snpc.name,
+            subtitle: 'Cimientos del Reino · Jefe de Maquinaria',
+            paragraphs: [
+              '«¡Atención, viajero! La fosa central está anegada de agua hirviente y el montacargas principal carece de presión.»',
+              '«Para purgar el canal hidráulico debes calibrar las tres válvulas en el orden correcto de flujo: primero el Caudal [A], luego la Válvula de Vapor [C] y finalmente el Drenaje [B].»',
+              '«Una vez desalojada el agua, los pistones subirán y el ascensor a la Gran Biblioteca quedará expedito.»',
+            ],
+            hint: 'Gira las válvulas en orden: Caudal [A] → Vapor [C] → Drenaje [B].',
+            accentHex: snpc.palette.glow,
+          });
+          return;
+        }
+
+        if (snpc.id === 'npc-archivero-ovidio') {
+          setActiveDialog({
+            category: snpc.role.toUpperCase(),
+            title: snpc.name,
+            subtitle: 'Gran Biblioteca de los Reyes · Archivero Real',
+            paragraphs: [
+              '«Bienvenido al sagrario de los libros. Soy el Archivero Ovidio, custodio de las memorias del reino.»',
+              '«Para revelar el pasadizo secreto hacia la Torre del Tiempo, debes recuperar los cuatro fragmentos de la Crónica del Rey (I, II, III, IV) y depositarlos en sus atriles dedicados con luz.»',
+              '«Al completar la cuarta peana, los contrapesos de roble y bronce moverán la gran estantería del centro.»',
+            ],
+            hint: 'Recoge las crónicas y colócalas en los atriles I, II, III y IV.',
+            accentHex: snpc.palette.glow,
+          });
+          return;
+        }
+
+        if (snpc.id === 'npc-crono-vigia') {
+          setActiveDialog({
+            category: snpc.role.toUpperCase(),
+            title: snpc.name,
+            subtitle: 'La Torre del Tiempo · Maestro Relojero',
+            paragraphs: [
+              '«Estás a las puertas del santuario supremo. Los engranajes colosales del reloj del tiempo han perdido la sincronía.»',
+              '«Acciona la Palanca del Engranaje Mayor a la izquierda y la Palanca del Péndulo Boreal a la derecha para equilibrar la marcha.»',
+              '«Cuando ambas ruedas canten al unísono, las grandes puertas dobles hacia la Sala del Trono cederán.»',
+            ],
+            hint: 'Acciona la palanca izquierda y la palanca derecha para abrir la Sala del Trono.',
+            accentHex: snpc.palette.glow,
+          });
+          return;
+        }
+
+        if (snpc.id === 'npc-donkey-kong-freed') {
+          setActiveDialog({
+            category: snpc.role.toUpperCase(),
+            title: snpc.name,
+            subtitle: 'Isla Orígenes Liberada · Monarca Restaurado',
+            paragraphs: [
+              '«"¡Gracias de nuevo, Pixel! La pesadilla de Super KOOPA se disipa de la cumbre y el cielo estelar brilla despejado."»',
+              '«"Tienes en tu poder el Pase de Travesía de Isla Orígenes. Aborda la nave de Space Invaders en el hangar norte y actívala: tu destino es la legendaria Isla de los 80."»',
+            ],
+            hint: 'Acércate a la nave de Space Invaders en el hangar e inserta el Pase de Travesía [E].',
+            accentHex: snpc.palette.glow,
+          });
+          return;
+        }
       }
 
       if (target.kind === 'labyrinth-hatch') {
@@ -1699,7 +2083,52 @@ export function Origin70sIsland({
           callbacksRef.current.onDiscoverSecret('secret-sala-breakout-1976');
         }
         retroAudio.uiClick();
-        callbacksRef.current.onEnterBreakout();
+        callbacksRef.current.onSavePosition(playerPosBridgeRef.current.x, playerPosBridgeRef.current.y);
+        if (target.id === 'cabinet-breakout-crossroads-1976') callbacksRef.current.onEnterBreakoutFromNorth?.();
+        else callbacksRef.current.onEnterBreakout();
+        return;
+      }
+
+      if (target.kind === 'north-arcade') {
+        callbacksRef.current.onSavePosition(playerPosBridgeRef.current.x, playerPosBridgeRef.current.y);
+        retroAudio.uiClick();
+        if (target.id === 'asteroids') callbacksRef.current.onEnterAsteroids?.();
+        else if (target.id === 'sea-wolf') callbacksRef.current.onEnterSeaWolf?.();
+        else if (target.id === 'tank') callbacksRef.current.onEnterTank?.();
+        else if (target.id === 'lunar-lander') callbacksRef.current.onEnterLunarLander?.();
+        return;
+      }
+
+      if (target.kind === 'volcanic-arcade') {
+        callbacksRef.current.onSavePosition(playerPosBridgeRef.current.x, playerPosBridgeRef.current.y);
+        retroAudio.uiClick();
+        if (target.id === 'asteroids') callbacksRef.current.onEnterAsteroids?.();
+        else if (target.id === 'breakout') {
+          if (callbacksRef.current.onEnterBreakoutFromNorth) callbacksRef.current.onEnterBreakoutFromNorth();
+          else callbacksRef.current.onEnterBreakout();
+        }
+        return;
+      }
+
+      if (target.kind === 'breakout-stone') {
+        if (!st.breakoutRestored) {
+          setActiveDialog({
+            category: 'RELIQUIA DEL BASTIÓN · BREAKOUT 1976',
+            title: 'La Paleta Sellada en Basalto',
+            paragraphs: ['Una paleta de cuatro bandas sobresale de la roca volcánica. Las grietas brillan alrededor de su empuñadura, pero la piedra no cede.', 'La inscripción de cobre dice: «Solo quien restaure el muro de BREAKOUT podrá reclamar la hoja».' ],
+            hint: 'Supera BREAKOUT en el gabinete junto a la piedra.',
+            accentHex: '#f5bb44',
+          });
+        } else if (!st.progressState.rpg.discoveredSecretIds.includes('breakout-sword-extracted')) {
+          startBreakoutSwordExtraction();
+        } else {
+          setActiveDialog({
+            category: 'ARMA LEGENDARIA · EQUIPADA',
+            title: 'Espada Paleta de BREAKOUT',
+            paragraphs: ['El basalto se abrió alrededor de la empuñadura. La Espada Paleta ya forma parte de tu mochila y responde al poder de combate [2].'],
+            accentHex: '#f5bb44',
+          });
+        }
         return;
       }
 
@@ -1782,6 +2211,38 @@ export function Origin70sIsland({
               onSelect: () => {
                 setActiveDialog(null);
                 callbacksRef.current.onEnterSpaceInvaders();
+              },
+            };
+          } else if (exhibit.linkedGameId === 'asteroids') {
+            primaryAction = {
+              label: 'Jugar Asteroids (1979)',
+              onSelect: () => {
+                setActiveDialog(null);
+                callbacksRef.current.onEnterAsteroids?.();
+              },
+            };
+          } else if (exhibit.linkedGameId === 'sea-wolf') {
+            primaryAction = {
+              label: 'Jugar Sea Wolf (1976)',
+              onSelect: () => {
+                setActiveDialog(null);
+                callbacksRef.current.onEnterSeaWolf?.();
+              },
+            };
+          } else if (exhibit.linkedGameId === 'tank') {
+            primaryAction = {
+              label: 'Jugar Tank (1974)',
+              onSelect: () => {
+                setActiveDialog(null);
+                callbacksRef.current.onEnterTank?.();
+              },
+            };
+          } else if (exhibit.linkedGameId === 'lunar-lander') {
+            primaryAction = {
+              label: 'Jugar Lunar Lander (1979)',
+              onSelect: () => {
+                setActiveDialog(null);
+                callbacksRef.current.onEnterLunarLander?.();
               },
             };
           }
@@ -1948,6 +2409,7 @@ export function Origin70sIsland({
           return;
         }
         retroAudio.uiClick();
+        callbacksRef.current.onSavePosition(playerPosBridgeRef.current.x, playerPosBridgeRef.current.y);
         callbacksRef.current.onEnterSpaceInvaders();
         return;
       }
@@ -2047,6 +2509,291 @@ export function Origin70sIsland({
               : vista.unlockRequirement,
           accentHex: vista.accentHex,
         });
+        return;
+      }
+
+      // =====================================================================
+      // INTERACCIONES DE EL CASTILLO DEL REY CORRUPTO
+      // =====================================================================
+      if (target.kind === 'castle-entrance') {
+        const drawbridgeDown =
+          st.allUnlocked ||
+          st.progressState.rpg.discoveredSecretIds.includes('castle-drawbridge-lowered') ||
+          st.progressState.rpg.solvedPuzzleIds.includes('puzzle-sellos-castillo');
+
+        if (drawbridgeDown) {
+          transitionToArea(
+            'castle-murallas',
+            440,
+            480,
+            'up',
+            'El Castillo del Rey Corrupto · Murallas del Destierro'
+          );
+        } else {
+          retroAudio.npcBlip(0.75);
+          setActiveDialog({
+            category: 'CASTILLO DEL REY CORRUPTO · PUENTE LEVADIZO',
+            title: 'Puente Levadizo Bloqueado',
+            subtitle: 'Super KOOPA ha sellado el acceso',
+            paragraphs: [
+              '«El puente de madera y hierro está alzado. Cuatro cadenas macizas sostienen la compuerta sobre el abismo.»',
+              '«En el sendero exterior descansan cuatro pedestales apagados (Sol ☀, Luna ☾, Estrella ★, Rayo ⚡) junto a la Estela Rúnica.»',
+            ],
+            hint: 'Examina la Estela y pulsa los cuatro pedestales en el orden correcto para bajar el puente.',
+            accentHex: '#c084fc',
+          });
+        }
+        return;
+      }
+
+      if (target.kind === 'castle-seal') {
+        const expectedOrder = [
+          'castle-seal-sol',
+          'castle-seal-luna',
+          'castle-seal-estrella',
+          'castle-seal-rayo',
+        ];
+        const nextExpected = expectedOrder[towerSealsOrderRef.current.length];
+
+        if (target.id === nextExpected) {
+          towerSealsOrderRef.current.push(target.id);
+          callbacksRef.current.onDiscoverSecret(target.id);
+          retroAudio.shardCollect(towerSealsOrderRef.current.length);
+
+          if (towerSealsOrderRef.current.length === 4) {
+            retroAudio.secretFound();
+            callbacksRef.current.onSolvePuzzle('puzzle-sellos-castillo', [
+              'item-llave-torres-castillo',
+            ]);
+            callbacksRef.current.onDiscoverSecret('castle-drawbridge-lowered');
+            showToast('¡Los 4 Sellos resplandecen! El puente levadizo desciende sobre el foso.');
+            setActiveDialog({
+              category: '¡MECANISMO DESBLOQUEADO! · CUATRO SELLOS',
+              title: 'El Puente Levadizo ha Descendido',
+              subtitle: 'Sello de las Cuatro Torres obtenido',
+              paragraphs: [
+                '«Un rugido de engranajes y cadenas sacude el desfiladero helado. Las pesadas vigas del puente levadizo caen sobre el abismo septentrional.»',
+                '«El camino hacia Las Murallas del Destierro y el interior del Castillo ha quedado expedito.»',
+              ],
+              accentHex: '#c084fc',
+            });
+          } else {
+            showToast(`¡Sello activado! (${towerSealsOrderRef.current.length}/4)`);
+          }
+        } else {
+          towerSealsOrderRef.current = [];
+          retroAudio.npcBlip(0.65);
+          showToast('Ciclo quebrado · Sigue el orden: Sol ☀ → Luna ☾ → Estrella ★ → Rayo ⚡');
+        }
+        return;
+      }
+
+      if (target.kind === 'castle-shortcut-door') {
+        callbacksRef.current.onDiscoverSecret('castle-shortcut-gate-open');
+        retroAudio.secretFound();
+        showToast('¡Reja de paso abierta! Atajo bidireccional habilitado en el laberinto.');
+        return;
+      }
+
+      if (target.kind === 'castle-valve') {
+        const expectedValves = [
+          'exam-castillo-valvula-caudal',
+          'exam-castillo-valvula-presion',
+          'exam-castillo-valvula-drenaje',
+        ];
+        const nextExpected = expectedValves[hydraulicValvesOrderRef.current.length];
+
+        if (target.id === nextExpected) {
+          hydraulicValvesOrderRef.current.push(target.id);
+          retroAudio.shardCollect(hydraulicValvesOrderRef.current.length);
+
+          if (hydraulicValvesOrderRef.current.length === 3) {
+            retroAudio.secretFound();
+            callbacksRef.current.onSolvePuzzle('puzzle-valvulas-hidraulicas', [
+              'item-nucleo-vital-castillo',
+            ]);
+            callbacksRef.current.onDiscoverSecret('castle-hydraulic-cleared');
+            showToast('¡Presión equilibrada! Fosa central drenada y montacargas hidráulico activo.');
+            setActiveDialog({
+              category: '¡SISTEMA HIDRÁULICO REESTABLECIDO!',
+              title: 'Cimientos del Reino Despejados',
+              subtitle: 'Núcleo de Vapor Ancestral recuperado',
+              paragraphs: [
+                '«El agua termal es canalizada hacia los pistones del montacargas. El vapor silba con fuerza y el ascensor a la Gran Biblioteca queda habilitado.»',
+              ],
+              accentHex: '#06b6d4',
+            });
+          } else {
+            showToast(`Válvula calibrada (${hydraulicValvesOrderRef.current.length}/3)`);
+          }
+        } else {
+          hydraulicValvesOrderRef.current = [];
+          retroAudio.npcBlip(0.7);
+          showToast('Presión inestable · Sigue el orden: Caudal [A] → Vapor [C] → Drenaje [B]');
+        }
+        return;
+      }
+
+      if (target.kind === 'castle-lectern') {
+        const num = parseInt(target.id.replace('exam-castillo-biblioteca-atril-', ''), 10) || 1;
+        if (!chroniclesPlacedRef.current.includes(num)) {
+          chroniclesPlacedRef.current.push(num);
+          retroAudio.shardCollect(chroniclesPlacedRef.current.length);
+
+          if (chroniclesPlacedRef.current.length === 4) {
+            callbacksRef.current.onSolvePuzzle('puzzle-cronica-reyes');
+            callbacksRef.current.onDiscoverSecret('castle-library-cleared');
+            retroAudio.secretFound();
+            showToast('¡Crónica completada! La gran estantería mecánica se desliza.');
+            setActiveDialog({
+              category: 'BIBLIOTECA DE LOS REYES · MECANISMO OCULTO',
+              title: 'La Gran Estantería se ha Deslizado',
+              subtitle: 'Pasadizo a la Torre del Tiempo revelado',
+              paragraphs: [
+                '«Los cuatro fragmentos de la crónica resuenan al unísono. La estantería de roble se desliza con un chasquido de contrapesos, abriendo la escalera hacia la Torre del Tiempo.»',
+              ],
+              accentHex: '#f59e0b',
+            });
+          } else {
+            showToast(`Fragmento de Crónica encajado (${chroniclesPlacedRef.current.length}/4)`);
+          }
+        } else {
+          showToast(`Atril ${num} · Fragmento ya colocado en su peana.`);
+        }
+        return;
+      }
+
+      if (target.kind === 'castle-tower-lever') {
+        if (target.id === 'exam-castillo-torre-palanca-izq') {
+          towerLeversRef.current.left = true;
+          showToast('Engranaje Mayor izquierdo sincronizado.');
+        } else {
+          towerLeversRef.current.right = true;
+          showToast('Péndulo Boreal derecho alineado.');
+        }
+        retroAudio.shardCollect(2);
+
+        if (towerLeversRef.current.left && towerLeversRef.current.right) {
+          callbacksRef.current.onSolvePuzzle('puzzle-torre-tiempo');
+          callbacksRef.current.onDiscoverSecret('castle-throne-reached');
+          retroAudio.secretFound();
+          showToast('¡Mecanismo de la Torre engranado! Las puertas de la Sala del Trono se abren.');
+          setActiveDialog({
+            category: 'TORRE DEL TIEMPO · SINCRONIZACIÓN TOTAL',
+            title: 'Las Puertas del Trono Están Abiertas',
+            subtitle: 'El Rey Corrupto aguarda en la cima',
+            paragraphs: [
+              '«Los engranajes de latón interbloquean sus dientes en perfecta cadencia. El gran péndulo se equilibra y las puertas dobles a la Sala del Trono ceden.»',
+            ],
+            accentHex: '#fbbf24',
+          });
+        }
+        return;
+      }
+
+      if (target.kind === 'castle-boss-hit') {
+        const b = bossCombatStateRef.current;
+        if (b.phase === 1) {
+          b.bossHp = 66;
+          b.phase = 2;
+          retroAudio.secretFound();
+          showToast('¡Impacto directo! Super KOOPA electrifica la sala: ¡Sobrecarga los 2 acumuladores laterales!');
+        } else if (b.phase === 2) {
+          if (b.conduitOverloads[0] && b.conduitOverloads[1]) {
+            b.bossHp = 33;
+            b.phase = 3;
+            retroAudio.secretFound();
+            showToast('¡Coraza disipada! Donkey Kong cae aturdido: ¡Destruye el Núcleo Digital!');
+          } else {
+            retroAudio.npcBlip(0.7);
+            showToast('¡La coraza violeta desvía tus ataques! Sobrecarga los 2 acumuladores laterales primero.');
+          }
+        } else if (b.phase === 3) {
+          b.bossHp = 0;
+          b.phase = 4;
+          b.dkPurified = true;
+          callbacksRef.current.onDiscoverSecret('castle-donkey-kong-freed');
+          callbacksRef.current.onOpenChest('chest-victory-hangar', ['item-llave-hangar-dk']);
+          retroAudio.questComplete();
+          showToast('¡Núcleo Digital de Super KOOPA destruido! Donkey Kong ha sido liberado.');
+          setActiveDialog({
+            category: '¡VICTORIA! · EL REY HA SIDO PURIFICADO',
+            title: 'Donkey Kong · Rey de la Fortaleza',
+            subtitle: 'La niebla de Super KOOPA se disipa',
+            paragraphs: [
+              '«El Núcleo Digital de Super KOOPA estalla en una lluvia de píxeles dorados y blancos. La luz cálida de la memoria regresa a los ojos de Donkey Kong.»',
+              '«"Mi mente... la pesadilla ha terminado. Super KOOPA utilizó mi lealtad para convertir mi baluarte en una cárcel. Gracias, noble viajero del píxel."»',
+              '«"Toma la Llave Maestra del Hangar. Tras mi trono descansa la legendaria nave de Space Invaders. Despega hacia el horizonte: la historia de los videojuegos te espera en los años 80."»',
+            ],
+            hint: 'Llave Maestra del Hangar obtenida. Camina hacia el norte y aborda la nave de Space Invaders.',
+            accentHex: '#22c55e',
+          });
+        }
+        return;
+      }
+
+      if (target.kind === 'castle-boss-conduit') {
+        const b = bossCombatStateRef.current;
+        if (target.x < 400) {
+          b.conduitOverloads[0] = true;
+          showToast('Acumulador izquierdo sobrecargado.');
+        } else {
+          b.conduitOverloads[1] = true;
+          showToast('Acumulador derecho sobrecargado.');
+        }
+        retroAudio.shardCollect(3);
+
+        if (b.conduitOverloads[0] && b.conduitOverloads[1]) {
+          showToast('¡Ambos acumuladores sobrecargados! El campo violeta colapsa: ¡Ataca a Donkey Kong ahora!');
+        }
+        return;
+      }
+
+      if (target.kind === 'castle-ship-launch') {
+        const hasKey =
+          st.allUnlocked ||
+          st.progressState.rpg.inventoryItems.includes('item-llave-hangar-dk') ||
+          st.progressState.rpg.discoveredSecretIds.includes('castle-donkey-kong-freed');
+
+        if (!hasKey) {
+          retroAudio.npcBlip(0.8);
+          showToast('La consola de la nave requiere la Llave Maestra entregada por Donkey Kong.');
+          return;
+        }
+
+        retroAudio.portalVictory();
+        callbacksRef.current.onUpdateQuest('quest-castillo-rey-corrupto', 'completed', [
+          'item-llave-hangar-dk',
+          'item-insignia-vigas-1981',
+        ]);
+        callbacksRef.current.onEnterDonkeyKong();
+
+        setActiveDialog({
+          category: 'LANZAMIENTO ESTELAR · NAVE SPACE INVADERS',
+          title: '¡RUMBO A LA ISLA DE LOS 80!',
+          subtitle: 'Cúpula del castillo abierta · Propulsores al 100%',
+          paragraphs: [
+            '«Giras la Llave Maestra en la consola de 1978. Las turbinas gemelas de la nave de Space Invaders se encienden con un trueno cósmico.»',
+            '«La cúpula de cristal y piedra del castillo se abre de par en par. La nave se eleva majestuosamente sobre las almenas, cruzando la aurora boreal.»',
+            '«En el radar táctico de la cabina parpadea una señal legendaria:»',
+            '«ISLA DE LOS 80 — MEMORIA DETECTADA»',
+          ],
+          accentHex: '#22c55e',
+          primaryAction: {
+            label: 'Desembarcar en Isla Neón 1980s',
+            onSelect: () => {
+              setActiveDialog(null);
+              transitionToArea(
+                'island-80s',
+                215,
+                360,
+                'down',
+                '¡ISLA NEÓN 1980s · MUELLE DE LAS VIGAS ROJAS!'
+              );
+            },
+          },
+        });
+        return;
       }
     },
     [currentZoneId, showToast, teleportExteriorTunnel, transitionToArea]
@@ -2133,6 +2880,70 @@ export function Origin70sIsland({
       const code = e.code;
       const hasModifier = e.ctrlKey || e.metaKey || e.altKey;
       const lowerKey = e.key.toLowerCase();
+
+      if (volcanicGuardDialogRef.current) {
+        e.preventDefault();
+        if (e.repeat) return;
+        if (volcanicGuardDialogRef.current === 'choice') {
+          if (['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'KeyA', 'KeyD'].includes(code)) {
+            const nextChoice = volcanicGuardChoiceRef.current === 'yes' ? 'no' : 'yes';
+            volcanicGuardChoiceRef.current = nextChoice;
+            setVolcanicGuardChoice(nextChoice);
+            retroAudio.uiClick();
+          } else if (code === 'Enter' || code === 'Space' || code === 'KeyE') {
+            resolveVolcanicGuardChoice(volcanicGuardChoiceRef.current);
+          } else if (lowerKey === 'y') {
+            resolveVolcanicGuardChoice('yes');
+          } else if (lowerKey === 'n' || code === 'Escape') {
+            resolveVolcanicGuardChoice('no');
+          }
+        } else if (code === 'Enter' || code === 'Space' || code === 'KeyE' || code === 'Escape') {
+          setVolcanicGuardDialog(null);
+          volcanicGuardDialogRef.current = null;
+          if (volcanicGuardTimerRef.current !== null) window.clearTimeout(volcanicGuardTimerRef.current);
+          volcanicGuardTimerRef.current = null;
+        }
+        return;
+      }
+
+      // Teclas numéricas 1-4 para Selector de Habilidades
+      if (!hasModifier && !e.repeat && (code === 'Digit1' || code === 'Numpad1')) {
+        e.preventDefault();
+        setActivePower('pong-hoverboard');
+        executeActivePower('pong-hoverboard');
+        return;
+      }
+      if (!hasModifier && !e.repeat && (code === 'Digit2' || code === 'Numpad2')) {
+        e.preventDefault();
+        setActivePower('shifting-blade');
+        executeActivePower('shifting-blade');
+        return;
+      }
+      if (!hasModifier && !e.repeat && (code === 'Digit3' || code === 'Numpad3')) {
+        e.preventDefault();
+        setActivePower('orbital-dash');
+        executeActivePower('orbital-dash');
+        return;
+      }
+      if (!hasModifier && !e.repeat && (code === 'Digit4' || code === 'Numpad4')) {
+        e.preventDefault();
+        setActivePower('sonar-pulse');
+        executeActivePower('sonar-pulse');
+        return;
+      }
+      if (!hasModifier && code === 'KeyC' && isIslandPowerUnlocked('shifting-blade', latestStateRef.current.progressState, latestStateRef.current.allUnlocked)) {
+        e.preventDefault();
+        setBladeMode((mode) => mode === 'short' ? 'extended' : mode === 'extended' ? 'gun' : 'short');
+        retroAudio.uiClick();
+        return;
+      }
+      if (!hasModifier && !e.repeat && (lowerKey === 'f' || code === 'KeyF' || lowerKey === 'z' || code === 'KeyZ')) {
+        if (!latestStateRef.current.modalOpen) {
+          e.preventDefault();
+          executeActivePower();
+          return;
+        }
+      }
 
       if (!hasModifier && code === 'KeyM' && activeAreaRef.current === 'exterior-70s') {
         e.preventDefault();
@@ -2253,10 +3064,14 @@ export function Origin70sIsland({
           ) {
             e.preventDefault();
             if (code === 'Enter') e.stopImmediatePropagation();
-            setActiveDialog(null);
-            setCodexOpen(false);
-            setInventoryOpen(false);
-            setQuestsOpen(false);
+            if (activeDialogRef.current && code === 'Enter') {
+              advanceDialogueRef.current();
+            } else {
+              setActiveDialog(null);
+              setCodexOpen(false);
+              setInventoryOpen(false);
+              setQuestsOpen(false);
+            }
           }
         } else if (nearbyPromptRef.current) {
           e.preventDefault();
@@ -2275,7 +3090,7 @@ export function Origin70sIsland({
     const onCanvasPointerDown = (e: PointerEvent) => {
       if (
         latestStateRef.current.modalOpen ||
-        vehicleFlightRef.current.type !== 'none' ||
+        (vehicleFlightRef.current.type !== 'none' && vehicleFlightRef.current.type !== 'hoverboard') ||
         areaTransitionLockRef.current
       ) {
         return;
@@ -2323,7 +3138,13 @@ export function Origin70sIsland({
               southShortcut: st.southShortcutActive,
               gargantaBridge: st.glitchTrailCleared,
             })
-          ) && !isBlockedByExteriorBuilding(wx, wy);
+          ) &&
+          !isBlockedByExteriorBuilding(wx, wy) &&
+          !isBlockedByIslandRouteRail(wx, wy) &&
+          !isBlockedByVolcanicGuardGate(wx, wy, st.allUnlocked || st.progressState.island70s.talkedNpcIds.includes(VOLCANIC_GUARD_ID)) &&
+          !isVolcanicArcadeCabinetBlocked(wx, wy) &&
+          !isBreakoutLegendStoneBlocked(wx, wy) &&
+          !isNorthArcadeCabinetBlocked(wx, wy);
         if (walkable) {
           virtualInputRef.current.clickTarget = { x: wx, y: wy };
         }
@@ -2460,7 +3281,7 @@ export function Origin70sIsland({
       const curArea = activeAreaRef.current;
       const flight = vehicleFlightRef.current;
 
-      if (curArea === 'exterior-70s' && flight.type !== 'none') {
+      if (curArea === 'exterior-70s' && flight.type !== 'none' && flight.type !== 'hoverboard') {
         flight.elapsed += dt;
         const p = Math.min(1, flight.elapsed / flight.duration);
         const smooth = p * p * (3 - 2 * p);
@@ -2550,10 +3371,30 @@ export function Origin70sIsland({
           }
         }
 
-        const sprinting = Boolean(keys['ShiftLeft'] || keys['ShiftRight'] || vIn.sprint);
+        const dash = orbitalDashRef.current;
+        if (dash.cooldown > 0) {
+          dash.cooldown = Math.max(0, dash.cooldown - dt);
+          setDashCooldown(Math.ceil(dash.cooldown * 10) / 10);
+        } else setDashCooldown(0);
+        const hoverboarding = curArea === 'exterior-70s' && vehicleFlightRef.current.type === 'hoverboard';
+        const sprinting = Boolean(keys['ShiftLeft'] || keys['ShiftRight'] || vIn.sprint || dash.remaining > 0 || hoverboarding);
         const baseSpeed = curArea === 'exterior-70s' ? 215 : 190;
         const sprintSpeed = curArea === 'exterior-70s' ? 315 : 265;
-        const speed = sprinting ? sprintSpeed : baseSpeed;
+        const speed = dash.remaining > 0 ? 720 : hoverboarding ? 285 : sprinting ? sprintSpeed : baseSpeed;
+        if (dash.remaining > 0) {
+          dx = dash.dx;
+          dy = dash.dy;
+        }
+        if (hoverboarding && (dx !== 0 || dy !== 0) && !latestStateRef.current.allUnlocked) {
+          const nextStock = Math.max(0, phosphorusStockRef.current - dt * 5);
+          phosphorusStockRef.current = nextStock;
+          if (Math.floor(nextStock) !== Math.floor(nextStock + dt * 5)) setPhosphorusStock(Math.floor(nextStock));
+          if (nextStock <= 0) {
+            vehicleFlightRef.current = { type: 'none', elapsed: 0, duration: 0 };
+            setPhosphorusStock(0);
+            showToast('Se agotó el fósforo ámbar.');
+          }
+        }
 
         player.sprinting = sprinting && (dx !== 0 || dy !== 0);
         player.walking = dx !== 0 || dy !== 0;
@@ -2572,23 +3413,40 @@ export function Origin70sIsland({
             retroAudio.stepTile();
           }
 
-          const nextX = player.x + dx * speed * dt;
-          const nextY = player.y + dy * speed * dt;
+          const stepDistance = Math.min(dash.remaining > 0 ? 8 : speed * dt, dash.remaining > 0 ? dash.remaining : speed * dt);
+          const nextX = player.x + dx * stepDistance;
+          const nextY = player.y + dy * stepDistance;
 
           if (curArea === 'exterior-70s') {
             const walkOpts = {
               southShortcut: st.southShortcutActive,
               gargantaBridge: st.glitchTrailCleared,
             };
+            const volcanicPassageOpen = st.allUnlocked || st.progressState.island70s.talkedNpcIds.includes(VOLCANIC_GUARD_ID);
             const canXY =
               Boolean(isPointWalkableOnIsland(nextX, nextY, walkOpts)) &&
-              !isBlockedByExteriorBuilding(nextX, nextY);
+              !isBlockedByExteriorBuilding(nextX, nextY) &&
+              !isBlockedByIslandRouteRail(nextX, nextY) &&
+              !isBlockedByVolcanicGuardGate(nextX, nextY, volcanicPassageOpen) &&
+              !isVolcanicArcadeCabinetBlocked(nextX, nextY) &&
+              !isBreakoutLegendStoneBlocked(nextX, nextY) &&
+              !isNorthArcadeCabinetBlocked(nextX, nextY);
             const canX =
               Boolean(isPointWalkableOnIsland(nextX, player.y, walkOpts)) &&
-              !isBlockedByExteriorBuilding(nextX, player.y);
+              !isBlockedByExteriorBuilding(nextX, player.y) &&
+              !isBlockedByIslandRouteRail(nextX, player.y) &&
+              !isBlockedByVolcanicGuardGate(nextX, player.y, volcanicPassageOpen) &&
+              !isVolcanicArcadeCabinetBlocked(nextX, player.y) &&
+              !isBreakoutLegendStoneBlocked(nextX, player.y) &&
+              !isNorthArcadeCabinetBlocked(nextX, player.y);
             const canY =
               Boolean(isPointWalkableOnIsland(player.x, nextY, walkOpts)) &&
-              !isBlockedByExteriorBuilding(player.x, nextY);
+              !isBlockedByExteriorBuilding(player.x, nextY) &&
+              !isBlockedByIslandRouteRail(player.x, nextY) &&
+              !isBlockedByVolcanicGuardGate(player.x, nextY, volcanicPassageOpen) &&
+              !isVolcanicArcadeCabinetBlocked(player.x, nextY) &&
+              !isBreakoutLegendStoneBlocked(player.x, nextY) &&
+              !isNorthArcadeCabinetBlocked(player.x, nextY);
 
             if (canXY) {
               player.x = nextX;
@@ -2603,29 +3461,73 @@ export function Origin70sIsland({
           } else {
             const subSpec = SUB_AREAS[curArea];
             const calmedIds = st.progressState.rpg.calmedCreatureIds;
-            if (isWalkableInSubArea(subSpec, nextX, nextY, calmedIds, st.allUnlocked)) {
+            const solvedPuzzles = st.progressState.rpg.solvedPuzzleIds;
+            if (
+              isWalkableInSubArea(subSpec, nextX, nextY, calmedIds, st.allUnlocked, solvedPuzzles)
+            ) {
               player.x = nextX;
               player.y = nextY;
             } else if (
-              isWalkableInSubArea(subSpec, nextX, player.y, calmedIds, st.allUnlocked)
+              isWalkableInSubArea(subSpec, nextX, player.y, calmedIds, st.allUnlocked, solvedPuzzles)
             ) {
               player.x = nextX;
             } else if (
-              isWalkableInSubArea(subSpec, player.x, nextY, calmedIds, st.allUnlocked)
+              isWalkableInSubArea(subSpec, player.x, nextY, calmedIds, st.allUnlocked, solvedPuzzles)
             ) {
               player.y = nextY;
             } else {
               vIn.clickTarget = null;
             }
           }
+          if (dx !== 0 || dy !== 0) lastMoveDirectionRef.current = { x: dx, y: dy };
+          if (dash.remaining > 0) {
+            const moved = Math.hypot(player.x - (nextX - dx * stepDistance), player.y - (nextY - dy * stepDistance));
+            dash.remaining = Math.max(0, dash.remaining - Math.max(0, Math.min(stepDistance, moved)));
+            if (moved + 0.5 < stepDistance) dash.remaining = 0;
+          }
         }
       } else {
         player.walking = false;
       }
 
+      const extractionMotion = breakoutSwordExtractionMotionRef.current;
+      if (st.breakoutSwordExtracting && extractionMotion) {
+        extractionMotion.elapsed = Math.min(extractionMotion.duration, extractionMotion.elapsed + dt);
+        const t = extractionMotion.elapsed / extractionMotion.duration;
+        const ease = t * t * (3 - 2 * t);
+        player.x = extractionMotion.fromX + (extractionMotion.toX - extractionMotion.fromX) * ease;
+        player.y = extractionMotion.fromY + (extractionMotion.toY - extractionMotion.fromY) * ease;
+        player.facingDir = extractionMotion.toX >= extractionMotion.fromX ? 'right' : 'left';
+        player.walking = t < 1;
+        if (t >= 1) playerPosBridgeRef.current.interactAnim = 0.28;
+      }
+
       playerPosBridgeRef.current.x = player.x;
       playerPosBridgeRef.current.y = player.y;
       playerPosBridgeRef.current.facingDir = player.facingDir;
+
+      if (curArea === 'exterior-70s' && (flight.type === 'none' || flight.type === 'hoverboard') && st.glitchTrailCleared) {
+        const guardDistance = Math.hypot(player.x - VOLCANIC_ARCADE_LAYOUT.guard.x, player.y - VOLCANIC_ARCADE_LAYOUT.guard.y);
+        const accepted = st.allUnlocked || st.progressState.island70s.talkedNpcIds.includes(VOLCANIC_GUARD_ID);
+        if (guardDistance > 128) volcanicGuardRetryLockedRef.current = false;
+        if (!accepted && !volcanicGuardRetryLockedRef.current && volcanicGuardDialogRef.current === null && guardDistance < 68) {
+          for (const key of Object.keys(keys)) keys[key] = false;
+          virtualInputRef.current.up = false;
+          virtualInputRef.current.down = false;
+          virtualInputRef.current.left = false;
+          virtualInputRef.current.right = false;
+          virtualInputRef.current.sprint = false;
+          virtualInputRef.current.clickTarget = null;
+          player.facingDir = player.x <= VOLCANIC_ARCADE_LAYOUT.guard.x ? 'right' : 'left';
+          playerPosBridgeRef.current.facingDir = player.facingDir;
+          setVolcanicGuardChoice('yes');
+          volcanicGuardChoiceRef.current = 'yes';
+          setVolcanicGuardDialog('choice');
+          volcanicGuardDialogRef.current = 'choice';
+          setNearbyPrompt(null);
+          retroAudio.npcBlip(0.86);
+        }
+      }
 
       // Evaluar losetas de presión si estamos en un interior con acertijo
       if (curArea !== 'exterior-70s') {
@@ -2724,7 +3626,7 @@ export function Origin70sIsland({
           }
         }
 
-        if (flight.type === 'none') {
+        if (flight.type === 'none' || flight.type === 'hoverboard') {
           const collectedIds = st.progressState.island70s.collectedDiamondIds;
           const activeSwitches = st.progressState.island70s.activatedIslandSwitches;
           for (const dia of ISLAND_DIAMONDS) {
@@ -3046,6 +3948,38 @@ export function Origin70sIsland({
             106
           );
 
+          const northArcades = NORTH_ARCADE_LAYOUT.arcades;
+          for (const arcade of [
+            { id: 'sea-wolf', ...northArcades.seaWolf, label: 'Sea Wolf (1976)', action: 'Jugar Sea Wolf', accent: '#67e8f9' },
+            { id: 'tank', ...northArcades.tank, label: 'Tank (1974)', action: 'Jugar Tank', accent: '#d9dc80' },
+            { id: 'lunar-lander', ...northArcades.lunarLander, label: 'Lunar Lander (1979)', action: 'Jugar Lunar Lander', accent: '#e8e2c4' },
+          ]) {
+            consider({
+              kind: 'north-arcade', id: arcade.id,
+              label: `Gabinete ${arcade.label} · Cruce Norte`, actionLabel: arcade.action,
+              x: arcade.x, y: arcade.y + 20, accentHex: arcade.accent,
+            }, 86);
+          }
+
+          for (const arcade of [
+            { id: 'asteroids', ...VOLCANIC_ARCADE_LAYOUT.asteroids, label: 'ASTEROIDS (1979)', action: 'Jugar Asteroids', accent: '#8df5db' },
+            { id: 'breakout', ...VOLCANIC_ARCADE_LAYOUT.breakout, label: 'BREAKOUT (1976)', action: 'Jugar Breakout', accent: '#f59e0b' },
+          ]) {
+            consider({
+              kind: 'volcanic-arcade', id: arcade.id,
+              label: `Gabinete ${arcade.label} · Bastión Volcánico`, actionLabel: arcade.action,
+              x: arcade.x, y: arcade.y + 20, accentHex: arcade.accent,
+            }, 86);
+          }
+
+          const swordExtracted = st.progressState.rpg.discoveredSecretIds.includes('breakout-sword-extracted');
+          consider({
+            kind: 'breakout-stone', id: 'breakout-legendary-paddle',
+            label: swordExtracted ? 'Piedra abierta · Espada Paleta reclamada' : st.breakoutRestored ? 'Piedra antigua · La paleta te espera' : 'Piedra antigua · Paleta legendaria sellada',
+            actionLabel: swordExtracted ? 'Examinar la piedra' : st.breakoutRestored ? 'Reclamar la Espada Paleta' : 'Examinar la piedra',
+            x: VOLCANIC_ARCADE_LAYOUT.breakoutStone.x, y: VOLCANIC_ARCADE_LAYOUT.breakoutStone.y + 28, accentHex: '#f5bb44',
+          }, 78);
+
           consider({
             kind: 'astrolabe',
             id: 'monument-astrolabe',
@@ -3107,10 +4041,74 @@ export function Origin70sIsland({
               96
             );
           }
+
+          // Llegada cinematográfica al aproximarse al Castillo por la cresta norte
+          if (
+            player.y <= -440 &&
+            player.y >= -580 &&
+            player.x >= 1800 &&
+            player.x <= 2100 &&
+            !st.progressState.rpg.discoveredSecretIds.includes('castle-arrival-seen')
+          ) {
+            callbacksRef.current.onDiscoverSecret('castle-arrival-seen');
+            retroAudio.doorTransition();
+            window.setTimeout(() => retroAudio.doorTransition(), 350);
+            window.setTimeout(() => retroAudio.doorTransition(), 700);
+            setActiveDialog({
+              category: 'ALERTA · CUMBRE SEPTENTRIONAL',
+              title: 'El Castillo del Rey Corrupto',
+              subtitle: 'Tres campanas doblan en la niebla polar',
+              paragraphs: [
+                '«Tres lentos tañidos de campana resuenan a través de los riscos helados, helando el aire a tu alrededor.»',
+                '«Una voz colosal y distorsionada ruge desde las almenas más altas de la fortaleza: "¡NADIE LLEGA AL TRONO. NADIE ABANDONA EL REINO!"»',
+                '«El puente levadizo se alza con violencia y pesadas cadenas de hierro bloquean el abismo. Los cuatro pedestales rúnicos del sendero se apagan.»',
+              ],
+              hint: 'Sigue la pista de la Estela Central para activar los 4 Sellos (Sol ☀, Luna ☾, Estrella ★, Rayo ⚡) y bajar el puente.',
+              accentHex: '#c084fc',
+            });
+          }
+
+          // Entrada exterior y pedestales de sellos
+          const drawbridgeDown =
+            st.allUnlocked ||
+            st.progressState.rpg.discoveredSecretIds.includes('castle-drawbridge-lowered') ||
+            st.progressState.rpg.solvedPuzzleIds.includes('puzzle-sellos-castillo');
+
+          consider({
+            kind: 'castle-entrance',
+            id: 'gate-castillo-exterior',
+            label: drawbridgeDown
+              ? 'Puente Levadizo Bajado · Acceso al Castillo'
+              : 'Puente Levadizo Alzado · Fortaleza Sellada',
+            actionLabel: drawbridgeDown ? 'Cruzar al Castillo' : 'Inspeccionar Mecanismo',
+            x: 1952,
+            y: -580,
+            accentHex: drawbridgeDown ? '#c084fc' : '#ef4444',
+          });
+
+          const sealSpecs = [
+            { id: 'castle-seal-sol', x: 1840, y: -520, sym: '☀', label: 'Pedestal Solar [☀]', hex: '#f59e0b' },
+            { id: 'castle-seal-luna', x: 1890, y: -500, sym: '☾', label: 'Pedestal Lunar [☾]', hex: '#38bdf8' },
+            { id: 'castle-seal-estrella', x: 2014, y: -500, sym: '★', label: 'Pedestal Estelar [★]', hex: '#fde047' },
+            { id: 'castle-seal-rayo', x: 2064, y: -520, sym: '⚡', label: 'Pedestal del Rayo [⚡]', hex: '#c084fc' },
+          ];
+
+          for (const sp of sealSpecs) {
+            const isLit = st.progressState.rpg.discoveredSecretIds.includes(sp.id);
+            consider({
+              kind: 'castle-seal',
+              id: sp.id,
+              label: isLit ? `${sp.label} (Encendido)` : sp.label,
+              actionLabel: isLit ? 'Sello Activo' : `Activar ${sp.sym}`,
+              x: sp.x,
+              y: sp.y,
+              accentHex: sp.hex,
+            });
+          }
         }
 
         lastPosSaveTimer += dt;
-        if (lastPosSaveTimer >= 1.8 && flight.type === 'none') {
+        if (lastPosSaveTimer >= 1.8 && (flight.type === 'none' || flight.type === 'hoverboard')) {
           lastPosSaveTimer = 0;
           callbacksRef.current.onSavePosition(player.x, player.y);
         }
@@ -3172,10 +4170,14 @@ export function Origin70sIsland({
             skinColor: st.skinColor,
             hairColor: st.hairColor,
             shirtColor: st.shirtColor,
+            appearance: st.appearance,
             pongRestored: st.pongRestored,
+            breakoutRestored: st.breakoutRestored,
             glitchTrailCleared: st.glitchTrailCleared,
             invadersRestored: st.invadersRestored,
             invadersCabinetUnlocked: st.invadersCabinetUnlocked,
+            volcanicPassageOpen: st.allUnlocked || st.progressState.island70s.talkedNpcIds.includes(VOLCANIC_GUARD_ID),
+            breakoutSwordExtracting: st.breakoutSwordExtracting,
             southShortcutActive: st.southShortcutActive,
             allUnlocked: st.allUnlocked,
             progressState: st.progressState,
@@ -3314,25 +4316,6 @@ export function Origin70sIsland({
           }
         }
 
-        if (curArea === 'secret-sala-breakout') {
-          consider(
-            {
-              kind: 'breakout-cabinet',
-              id: 'cabinet-breakout-1976',
-              label: st.breakoutRestored
-                ? 'Gabinete Secreto Breakout (1976) · Memoria Restaurada'
-                : `Gabinete Prototipo Breakout (1976) · Meta ${BREAKOUT_UNLOCK_SCORE} PTS`,
-              actionLabel: st.breakoutRestored
-                ? 'Rejugar Breakout (1976)'
-                : 'Encender Breakout (1976)',
-              x: BREAKOUT_CABINET_INTERACT.x,
-              y: BREAKOUT_CABINET_INTERACT.y,
-              accentHex: '#f97316',
-            },
-            88
-          );
-        }
-
         if (curArea === 'interior-museo-viviente') {
           for (const spot of MUSEUM_PEDESTAL_SPOTS) {
             const exhibit = MUSEUM_1970S_EXHIBITS.find((e) => e.id === spot.exhibitId);
@@ -3427,6 +4410,237 @@ export function Origin70sIsland({
           }
         }
 
+        // ===================================================================
+        // PROMPTS Y LÓGICA DE SUB-ÁREAS DE EL CASTILLO DEL REY CORRUPTO
+        // ===================================================================
+        if (curArea === 'castle-laberinto') {
+          const shortcutOpen =
+            st.allUnlocked ||
+            st.progressState.rpg.discoveredSecretIds.includes('castle-shortcut-gate-open');
+          if (!shortcutOpen) {
+            consider({
+              kind: 'castle-shortcut-door',
+              id: 'gate-laberinto-atajo',
+              label: 'Reja de Hierro Forjado · Mecanismo de Cerrojo',
+              actionLabel: 'Abrir Atajo Bidireccional',
+              x: 480,
+              y: 310,
+              accentHex: '#818cf8',
+            });
+          }
+        }
+
+        if (curArea === 'castle-cimientos') {
+          const hydCleared =
+            st.allUnlocked ||
+            st.progressState.rpg.solvedPuzzleIds.includes('puzzle-valvulas-hidraulicas');
+          if (!hydCleared) {
+            consider({
+              kind: 'castle-valve',
+              id: 'exam-castillo-valvula-caudal',
+              label: 'Válvula de Caudal Hidráulico [A]',
+              actionLabel: 'Girar Válvula A',
+              x: 220,
+              y: 230,
+              accentHex: '#06b6d4',
+            });
+            consider({
+              kind: 'castle-valve',
+              id: 'exam-castillo-valvula-drenaje',
+              label: 'Válvula de Drenaje Abisal [B]',
+              actionLabel: 'Girar Válvula B',
+              x: 460,
+              y: 230,
+              accentHex: '#06b6d4',
+            });
+            consider({
+              kind: 'castle-valve',
+              id: 'exam-castillo-valvula-presion',
+              label: 'Válvula de Presión de Vapor [C]',
+              actionLabel: 'Girar Válvula C',
+              x: 700,
+              y: 230,
+              accentHex: '#06b6d4',
+            });
+          }
+        }
+
+        if (curArea === 'castle-biblioteca') {
+          const libCleared =
+            st.allUnlocked ||
+            st.progressState.rpg.solvedPuzzleIds.includes('puzzle-cronica-reyes');
+          if (!libCleared) {
+            const lecterns = [
+              { num: 1, x: 230, label: 'Atril I · Era Fundacional' },
+              { num: 2, x: 390, label: 'Atril II · Hangar Estelar' },
+              { num: 3, x: 550, label: 'Atril III · Sombra de KOOPA' },
+              { num: 4, x: 710, label: 'Atril IV · Purificación' },
+            ];
+            for (const lec of lecterns) {
+              const placed = chroniclesPlacedRef.current.includes(lec.num);
+              consider({
+                kind: 'castle-lectern',
+                id: `exam-castillo-biblioteca-atril-${lec.num}`,
+                label: placed ? `${lec.label} (Encajado)` : lec.label,
+                actionLabel: placed ? 'Leer Fragmento' : `Colocar Fragmento ${lec.num}`,
+                x: lec.x,
+                y: 320,
+                accentHex: '#f59e0b',
+              });
+            }
+          }
+        }
+
+        if (curArea === 'castle-torre') {
+          const torreCleared =
+            st.allUnlocked ||
+            st.progressState.rpg.solvedPuzzleIds.includes('puzzle-torre-tiempo');
+          if (!torreCleared) {
+            consider({
+              kind: 'castle-tower-lever',
+              id: 'exam-castillo-torre-palanca-izq',
+              label: towerLeversRef.current.left
+                ? 'Palanca Izquierda (Sincronizada)'
+                : 'Palanca de Engranaje Mayor',
+              actionLabel: 'Sincronizar Engranaje',
+              x: 260,
+              y: 260,
+              accentHex: '#fbbf24',
+            });
+            consider({
+              kind: 'castle-tower-lever',
+              id: 'exam-castillo-torre-palanca-der',
+              label: towerLeversRef.current.right
+                ? 'Palanca Derecha (Sincronizada)'
+                : 'Palanca de Péndulo Boreal',
+              actionLabel: 'Alinear Péndulo',
+              x: 640,
+              y: 260,
+              accentHex: '#fbbf24',
+            });
+          }
+        }
+
+        if (curArea === 'castle-trono') {
+          const boss = bossCombatStateRef.current;
+          if (
+            boss.dkPurified ||
+            st.allUnlocked ||
+            st.progressState.rpg.discoveredSecretIds.includes('castle-donkey-kong-freed')
+          ) {
+            boss.dkPurified = true;
+            consider({
+              kind: 'castle-ship-launch',
+              id: 'ship-space-invaders-escape',
+              label: 'Nave Insignia de Space Invaders · Puente a la Isla de los 80',
+              actionLabel: 'Abordar Nave y Despegar',
+              x: 490,
+              y: 80,
+              accentHex: '#22c55e',
+            });
+          } else {
+            boss.attackTimer = (boss.attackTimer || 0) + dt;
+
+            // Frecuencia de barriles y ondas de choque
+            if (boss.phase === 1 && boss.attackTimer > 2.0) {
+              boss.attackTimer = 0;
+              boss.shockwaves.push({
+                x: boss.dkPos.x,
+                y: boss.dkPos.y + 20,
+                r: 10,
+                maxR: 160,
+                alpha: 1,
+              });
+              const dir = Math.random() > 0.5 ? 1 : -1;
+              boss.barrels.push({
+                x: boss.dkPos.x,
+                y: boss.dkPos.y + 40,
+                vx: dir * 140,
+                angle: 0,
+              });
+            }
+
+            for (let bIdx = boss.barrels.length - 1; bIdx >= 0; bIdx--) {
+              const b = boss.barrels[bIdx];
+              b.x += b.vx * dt;
+              b.angle += (b.vx > 0 ? 1 : -1) * dt * 8;
+              if (b.x < 120 || b.x > 860) {
+                boss.barrels.splice(bIdx, 1);
+              }
+            }
+
+            for (let sIdx = boss.shockwaves.length - 1; sIdx >= 0; sIdx--) {
+              const sw = boss.shockwaves[sIdx];
+              sw.r += 90 * dt;
+              sw.alpha -= 0.6 * dt;
+              if (sw.alpha <= 0 || sw.r >= sw.maxR) {
+                boss.shockwaves.splice(sIdx, 1);
+              }
+            }
+
+            if (boss.phase === 1) {
+              consider({
+                kind: 'castle-boss-hit',
+                id: 'boss-dk-corrupto',
+                label: 'Donkey Kong Corrupto [Fase 1] · Furia de Barriles',
+                actionLabel: '¡Atacar a Donkey Kong!',
+                x: boss.dkPos.x,
+                y: boss.dkPos.y + 20,
+                accentHex: '#ef4444',
+              });
+            } else if (boss.phase === 2) {
+              consider({
+                kind: 'castle-boss-conduit',
+                id: 'conduit-west',
+                label: boss.conduitOverloads[0]
+                  ? 'Acumulador Izquierdo (Sobrecargado)'
+                  : 'Acumulador Izquierdo de Corrupción',
+                actionLabel: boss.conduitOverloads[0]
+                  ? 'Circuito Colapsado'
+                  : 'Sobrecargar Acumulador',
+                x: 200,
+                y: 230,
+                accentHex: '#ec4899',
+              });
+              consider({
+                kind: 'castle-boss-conduit',
+                id: 'conduit-east',
+                label: boss.conduitOverloads[1]
+                  ? 'Acumulador Derecho (Sobrecargado)'
+                  : 'Acumulador Derecho de Corrupción',
+                actionLabel: boss.conduitOverloads[1]
+                  ? 'Circuito Colapsado'
+                  : 'Sobrecargar Acumulador',
+                x: 732,
+                y: 230,
+                accentHex: '#ec4899',
+              });
+
+              if (boss.conduitOverloads[0] && boss.conduitOverloads[1]) {
+                consider({
+                  kind: 'castle-boss-hit',
+                  id: 'boss-dk-corrupto-stunned',
+                  label: 'Donkey Kong · Coraza Violeta Desactivada',
+                  actionLabel: '¡Golpear para Disipar!',
+                  x: boss.dkPos.x,
+                  y: boss.dkPos.y + 20,
+                  accentHex: '#facc15',
+                });
+              }
+            } else if (boss.phase === 3) {
+              consider({
+                kind: 'castle-boss-hit',
+                id: 'boss-corruption-core',
+                label: 'Núcleo Digital de Super KOOPA [Fase Final]',
+                actionLabel: '¡Destruir el Núcleo!',
+                x: boss.dkPos.x,
+                y: boss.dkPos.y - 80,
+                accentHex: '#f43f5e',
+              });
+            }
+          }
+        }
+
         for (let i = pickupBursts.length - 1; i >= 0; i--) {
           pickupBursts[i].x += pickupBursts[i].vx * dt;
           pickupBursts[i].y += pickupBursts[i].vy * dt;
@@ -3454,6 +4668,7 @@ export function Origin70sIsland({
           skinColor: st.skinColor,
           hairColor: st.hairColor,
           shirtColor: st.shirtColor,
+          appearance: st.appearance,
           progressState: st.progressState,
           allUnlocked: st.allUnlocked,
           steppedTileOrder: steppedTilesRef.current,
@@ -3461,6 +4676,7 @@ export function Origin70sIsland({
           pickupBursts,
           prompt: st.modalOpen ? null : nearbyPromptRef.current,
           scannerPulse: scannerPulseRef.current,
+          bossCombatState: bossCombatStateRef.current,
         });
       }
 
@@ -3480,6 +4696,7 @@ export function Origin70sIsland({
   }, [
     handleToggleLanternAction,
     handleUseScannerPulse,
+    resolveVolcanicGuardChoice,
     showToast,
     triggerInteraction,
   ]);
@@ -3730,6 +4947,49 @@ export function Origin70sIsland({
     <div className="relative w-screen h-screen overflow-hidden select-none bg-[#020614]">
       <canvas ref={canvasRef} className="block w-full h-full cursor-crosshair" />
 
+      {volcanicGuardDialog && (
+        <div className="pointer-events-none absolute inset-x-0 top-[14%] z-25 flex justify-center px-3 sm:top-[12%] sm:px-6" aria-live="assertive">
+          <section className="pointer-events-auto relative w-full max-w-2xl border-[3px] border-[#171319] bg-[#24171a] p-[3px] shadow-[0_8px_0_rgba(0,0,0,.55),0_0_24px_rgba(249,115,22,.28)]">
+            <div className="border-2 border-[#d38d3b] bg-[radial-gradient(ellipse_at_top,#51332c_0%,#281a1c_74%)] px-4 py-3 sm:px-6 sm:py-4">
+              <div className="mb-2 flex items-center gap-2 border-b border-[#d38d3b]/60 pb-2">
+                <span className="inline-block h-3 w-3 border-2 border-[#ffe27e] bg-[#e96229] shadow-[0_0_8px_#f97316]" />
+                <p className="font-mono text-[10px] font-bold tracking-[.18em] text-[#ffd27a] sm:text-xs">GUARDIA ANTIFLAMA · BASTIÓN VOLCÁNICO</p>
+              </div>
+              <p className="font-mono text-xs font-bold leading-relaxed text-[#fff5dc] sm:text-sm">
+                {volcanicGuardDialog === 'choice'
+                  ? '¡CUIDADO! ESTA ES ZONA PELIGROSA. ¡ACABAN DE INVADIR ESTA ZONA! ¿ESTÁS SEGURO DE QUE QUIERES SEGUIR?'
+                  : volcanicGuardDialog === 'no'
+                  ? '¡ESTO ES PARA VALIENTES!'
+                  : '¡QUÉ CRACK! ME SORPRENDE TU VALENTÍA. ¡BUENA SUERTE!'}
+              </p>
+              {volcanicGuardDialog === 'choice' ? (
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-3">
+                  <button
+                    type="button"
+                    aria-pressed={volcanicGuardChoice === 'yes'}
+                    onMouseEnter={() => { volcanicGuardChoiceRef.current = 'yes'; setVolcanicGuardChoice('yes'); }}
+                    onClick={() => resolveVolcanicGuardChoice('yes')}
+                    className={`border-2 px-3 py-2 text-left font-mono text-[11px] font-bold tracking-wide transition-colors sm:text-xs ${volcanicGuardChoice === 'yes' ? 'border-[#ffe27e] bg-[#bc4d20] text-white shadow-[inset_0_0_0_2px_#7a2d1b]' : 'border-[#9a6540] bg-[#322323] text-[#e7cfaa] hover:border-[#ffe27e]'}`}
+                  >{volcanicGuardChoice === 'yes' ? '▶ SÍ, CONTINUAR' : '  SÍ, CONTINUAR'}</button>
+                  <button
+                    type="button"
+                    aria-pressed={volcanicGuardChoice === 'no'}
+                    onMouseEnter={() => { volcanicGuardChoiceRef.current = 'no'; setVolcanicGuardChoice('no'); }}
+                    onClick={() => resolveVolcanicGuardChoice('no')}
+                    className={`border-2 px-3 py-2 text-left font-mono text-[11px] font-bold tracking-wide transition-colors sm:text-xs ${volcanicGuardChoice === 'no' ? 'border-[#ffe27e] bg-[#bc4d20] text-white shadow-[inset_0_0_0_2px_#7a2d1b]' : 'border-[#9a6540] bg-[#322323] text-[#e7cfaa] hover:border-[#ffe27e]'}`}
+                  >{volcanicGuardChoice === 'no' ? '▶ NO, VOLVER' : '  NO, VOLVER'}</button>
+                </div>
+              ) : (
+                <p className="mt-3 text-right font-mono text-[10px] font-bold tracking-widest text-[#ffd27a]">CONTINUAR · [ENTER]</p>
+              )}
+              {volcanicGuardDialog === 'choice' && (
+                <p className="mt-2 text-right font-mono text-[9px] tracking-wide text-[#d8ba94]">SELECCIONAR · [←/→] &nbsp; CONFIRMAR · [ENTER]</p>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
       {/* Cortina rápida de transición pixelada al cruzar puertas, cuevas o islas */}
       <div
         aria-hidden="true"
@@ -3760,14 +5020,6 @@ export function Origin70sIsland({
 
       {activeAreaId === 'exterior-70s' && (
         <>
-          <div className="fixed bottom-3 left-3 z-20 w-[clamp(7rem,25vw,12rem)] max-w-[calc(100vw-1.5rem)] gbc-hud-frame p-1.5 pointer-events-none">
-            <div className="mb-1 flex items-center gap-1 text-[8px] font-mono-tabular font-bold text-[#fde047]">
-              <MapIcon className="h-3 w-3 shrink-0" />
-              <span>ISLA · 70s</span>
-            </div>
-            {renderMinimapMap()}
-          </div>
-
           {minimapOpen && (
             <div className="fixed bottom-3 right-3 z-20 w-[min(15rem,55vw)] max-w-[calc(100vw-1.5rem)] gbc-hud-frame p-2 space-y-1.5 pointer-events-auto">
               <div className="flex items-center justify-between text-[9px] font-mono-tabular font-bold text-[#fde047] px-0.5">
@@ -3796,27 +5048,170 @@ export function Origin70sIsland({
         </>
       )}
 
+      {/* HUD Dock for Active Powers [1-4] */}
+      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-20 glass-panel px-3 py-1.5 rounded-xl border border-[#00f3ff]/40 flex items-center gap-2 text-xs font-mono">
+          <span className="text-[10px] text-[#fde047] font-bold mr-1 hidden sm:inline">PODERES:</span>
+        <button
+          type="button"
+          onClick={() => { setActivePower('pong-hoverboard'); executeActivePower('pong-hoverboard'); }}
+          disabled={!isIslandPowerUnlocked('pong-hoverboard', progressState, allUnlocked)}
+          className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+            activePower === 'pong-hoverboard' ? 'bg-[#facc15] text-black shadow-[0_0_10px_#facc15]' : 'bg-slate-800 text-slate-300 hover:text-white'
+          }`}
+        >
+          [1] Paleta {!isIslandPowerUnlocked('pong-hoverboard', progressState, allUnlocked) ? '· BLOQ' : phosphorusStock <= 0 && !allUnlocked ? '· SIN FÓSFORO' : vehicleFlightRef.current.type === 'hoverboard' ? `· ${Math.ceil(phosphorusStock)}%` : '· LISTA'}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActivePower('shifting-blade'); executeActivePower('shifting-blade'); }}
+          disabled={!isIslandPowerUnlocked('shifting-blade', progressState, allUnlocked)}
+          className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+            activePower === 'shifting-blade' ? 'bg-[#f97316] text-white shadow-[0_0_10px_#f97316]' : 'bg-slate-800 text-slate-300 hover:text-white'
+          }`}
+        >
+          [2] Espada ({bladeMode === 'short' ? 'Corta' : bladeMode === 'extended' ? 'Larga' : 'Pistola'}) {!isIslandPowerUnlocked('shifting-blade', progressState, allUnlocked) ? '· BLOQ' : ''}
+        </button>
+        <button type="button" disabled={!isIslandPowerUnlocked('shifting-blade', progressState, allUnlocked)} onClick={() => setBladeMode((mode) => mode === 'short' ? 'extended' : mode === 'extended' ? 'gun' : 'short')} className="px-1 py-1 rounded-md text-[10px] text-slate-200 bg-slate-900 hover:bg-slate-700 disabled:opacity-40" title="Cambiar modo de arma">[C] MODO</button>
+        <button
+          type="button"
+          onClick={() => { setActivePower('orbital-dash'); executeActivePower('orbital-dash'); }}
+          disabled={!isIslandPowerUnlocked('orbital-dash', progressState, allUnlocked)}
+          className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+            activePower === 'orbital-dash' ? 'bg-[#00f3ff] text-black shadow-[0_0_10px_#00f3ff]' : 'bg-slate-800 text-slate-300 hover:text-white'
+          }`}
+        >
+          [3] Dash {!isIslandPowerUnlocked('orbital-dash', progressState, allUnlocked) ? '· BLOQ' : dashCooldown > 0 ? `· ${dashCooldown.toFixed(1)}s` : '· LISTO'}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActivePower('sonar-pulse'); executeActivePower('sonar-pulse'); }}
+          disabled={!isIslandPowerUnlocked('sonar-pulse', progressState, allUnlocked)}
+          className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+            activePower === 'sonar-pulse' ? 'bg-[#10b981] text-black shadow-[0_0_10px_#10b981]' : 'bg-slate-800 text-slate-300 hover:text-white'
+          }`}
+        >
+          [4] Sonar {!isIslandPowerUnlocked('sonar-pulse', progressState, allUnlocked) ? '· BLOQ' : sonarActive ? '· ACTIVO' : '· LISTO'}
+        </button>
+        <button
+          type="button"
+          onClick={() => executeActivePower()}
+          className="btn-ui px-3 py-1 rounded-md text-[11px] font-bold text-[#fde047] cursor-pointer ml-1"
+        >
+          ⚡ [F] Ejecutar
+        </button>
+      </div>
+
+      {/* Legacy Power Selection Modal */}
+      {legacyPowerModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+          <div className="max-w-xl glass-panel p-6 rounded-2xl border-2 border-[#00f3ff] space-y-4">
+            <div className="text-[#fde047] font-mono text-xs font-bold tracking-widest uppercase">
+              FIN DE LA ISLA DEL ORIGEN · LEGADO DEL ARQUITECTO
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold font-mono text-white">
+              Elige un Único Poder como Legado para la Siguiente Era
+            </h2>
+            <p className="text-xs text-slate-300 font-mono">
+              Tus recuerdos, victorias y sectores desbloqueados permanecen guardados para siempre. Selecciona el poder que perdurará activo durante tu travesía en la Isla de los 80:
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 text-left">
+              <button
+                type="button"
+                onClick={() => setSelectedLegacyPower('pong-hoverboard')}
+                className={`p-3 rounded-xl border text-xs font-mono cursor-pointer transition-all ${
+                  selectedLegacyPower === 'pong-hoverboard'
+                    ? 'border-[#facc15] bg-[#facc15]/20 text-white'
+                    : 'border-slate-700 bg-slate-900/80 text-slate-300 hover:border-slate-500'
+                }`}
+              >
+                <div className="font-bold text-[#facc15]">1. Paleta Voladora (Pong)</div>
+                <div className="text-[10px] text-slate-400 mt-1">Planea sobre terrenos y fisuras consumiendo fósforo.</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedLegacyPower('shifting-blade')}
+                className={`p-3 rounded-xl border text-xs font-mono cursor-pointer transition-all ${
+                  selectedLegacyPower === 'shifting-blade'
+                    ? 'border-[#f97316] bg-[#f97316]/20 text-white'
+                    : 'border-slate-700 bg-slate-900/80 text-slate-300 hover:border-slate-500'
+                }`}
+              >
+                <div className="font-bold text-[#f97316]">2. Espada Cambiante (Breakout)</div>
+                <div className="text-[10px] text-slate-400 mt-1">Hoja de 3 modos: corta, látigo 4-bandas y pistola de energía.</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedLegacyPower('orbital-dash')}
+                className={`p-3 rounded-xl border text-xs font-mono cursor-pointer transition-all ${
+                  selectedLegacyPower === 'orbital-dash'
+                    ? 'border-[#00f3ff] bg-[#00f3ff]/20 text-white'
+                    : 'border-slate-700 bg-slate-900/80 text-slate-300 hover:border-slate-500'
+                }`}
+              >
+                <div className="font-bold text-[#00f3ff]">3. Dash Orbital (Asteroids)</div>
+                <div className="text-[10px] text-slate-400 mt-1">Impulso vectorial inercial que irrumpe a través de glitches.</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedLegacyPower('sonar-pulse')}
+                className={`p-3 rounded-xl border text-xs font-mono cursor-pointer transition-all ${
+                  selectedLegacyPower === 'sonar-pulse'
+                    ? 'border-[#10b981] bg-[#10b981]/20 text-white'
+                    : 'border-slate-700 bg-slate-900/80 text-slate-300 hover:border-slate-500'
+                }`}
+              >
+                <div className="font-bold text-[#10b981]">4. Pulso Sonar (Sea Wolf)</div>
+                <div className="text-[10px] text-slate-400 mt-1">Onda sónica por periscopio que revela secretos e interactivos.</div>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              disabled={!selectedLegacyPower}
+              onClick={() => {
+                if (!selectedLegacyPower) return;
+                setLegacyPowerModalOpen(false);
+                callbacksRef.current.onEquipCosmetic(selectedLegacyPower);
+                showToast(`¡Poder Legado Consagrado: ${selectedLegacyPower}!`);
+                callbacksRef.current.onEnterDonkeyKong();
+              }}
+              className={`w-full py-3 rounded-xl font-mono font-bold text-sm transition-all ${
+                selectedLegacyPower
+                  ? 'btn-ui text-[#00f3ff] cursor-pointer'
+                  : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+              }`}
+            >
+              Confirmar Legado y Zapar Hacia los Años 80 →
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Notificación efímera de hallazgo o vuelo */}
       {(toastBanner || flightStatusText) && (
-        <div className="pointer-events-none absolute top-5 left-1/2 -translate-x-1/2 z-30 gbc-hud-frame px-4 py-2 text-xs font-mono font-bold text-[#fde047] text-center max-w-xl">
+        <div className="pointer-events-none absolute top-14 left-1/2 -translate-x-1/2 z-30 gbc-hud-frame px-4 py-2 text-xs font-mono font-bold text-[#fde047] text-center max-w-xl">
           {flightStatusText || toastBanner}
         </div>
       )}
 
       {/* Cuadro de diálogo narrativo estilo Game Boy Color */}
       {activeDialog && (
-        <div className="fixed inset-0 z-40 bg-black/75 flex items-end sm:items-center justify-center p-4">
+        <div className="dialogue-backdrop fixed inset-0 z-40 flex items-end sm:items-center justify-center p-3 sm:p-5">
           <div
-            className={`gbc-retro-box rounded-none w-full p-5 sm:p-6 space-y-3 relative max-h-[92vh] overflow-y-auto ${
+            className={`dialogue-frame rounded-none w-full p-4 sm:p-6 space-y-3 relative max-h-[92vh] overflow-y-auto ${
               activeDialog.museumExhibit ? 'max-w-4xl' : 'max-w-xl'
-            }`}
+            } ${activeDialog.category.toLowerCase().includes('cueva') || activeDialog.category.toLowerCase().includes('castillo') ? 'dialogue-stone' : activeDialog.category.toLowerCase().includes('glitch') || activeDialog.category.toLowerCase().includes('vector') ? 'dialogue-arcane' : 'dialogue-wood'}`}
           >
             <div className="flex items-start justify-between gap-3 border-b-2 border-dashed border-white/30 pb-2.5">
               <div>
-                <p className="text-[10px] font-mono tracking-widest text-[#f2c94c] uppercase">
+                <p className="dialogue-kicker text-[10px] font-mono tracking-widest uppercase">
                   {activeDialog.category}
                 </p>
-                <h3 className="font-mono text-base sm:text-lg font-bold text-white mt-0.5">
+                <h3 className="dialogue-speaker font-mono text-base sm:text-lg font-bold mt-0.5">
                   {activeDialog.title}
                 </h3>
                 {activeDialog.subtitle && (
@@ -3853,10 +5248,11 @@ export function Origin70sIsland({
                   </figcaption>
                 </figure>
               )}
-              <div className="space-y-2 text-xs sm:text-sm text-slate-100 font-mono leading-relaxed">
-                {activeDialog.paragraphs.map((par, idx) => (
-                  <p key={idx}>{par}</p>
-                ))}
+              <div className={`dialogue-copy space-y-2 text-xs sm:text-sm font-mono leading-relaxed ${dialogueVisibleChars >= dialogueFullText.length ? 'dialogue-complete' : ''}`} onClick={() => setDialogueVisibleChars(dialogueFullText.length)}>
+                {activeDialog.paragraphs.map((par, idx) => {
+                  const start = activeDialog.paragraphs.slice(0, idx).reduce((total, previous) => total + previous.length + 2, 0);
+                  return <p key={idx}>{par.slice(0, Math.max(0, dialogueVisibleChars - start))}</p>;
+                })}
               </div>
             </div>
 
@@ -3894,20 +5290,21 @@ export function Origin70sIsland({
                 <button
                   type="button"
                   onClick={activeDialog.primaryAction.onSelect}
-                  className="bg-[#0284c7] hover:bg-[#0ea5e9] text-white border-2 border-white px-4 py-1.5 font-mono font-bold text-xs uppercase tracking-wider cursor-pointer shadow-[2px_2px_0px_#000000] whitespace-nowrap shrink-0"
+                className="dialogue-action px-4 py-1.5 font-mono font-bold text-xs uppercase tracking-wider cursor-pointer whitespace-nowrap shrink-0"
                 >
                   {activeDialog.primaryAction.label}
                 </button>
               )}
               <button
                 type="button"
+                autoFocus
                 onClick={() => {
                   retroAudio.uiClick();
-                  setActiveDialog(null);
+                  advanceDialogueRef.current();
                 }}
-                className="bg-[#dc2626] hover:bg-[#ef4444] text-white border-2 border-white px-4 py-1.5 font-mono font-bold text-xs uppercase tracking-wider cursor-pointer shadow-[2px_2px_0px_#000000] whitespace-nowrap shrink-0"
+                className="dialogue-action px-4 py-1.5 font-mono font-bold text-xs uppercase tracking-wider cursor-pointer whitespace-nowrap shrink-0"
               >
-                CONTINUAR [ENTER]
+                {dialogueVisibleChars < dialogueFullText.length ? 'REVELAR TEXTO [ENTER]' : 'CONTINUAR [ENTER]'}
               </button>
             </div>
           </div>

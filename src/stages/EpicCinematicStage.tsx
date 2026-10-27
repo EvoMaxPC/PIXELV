@@ -8,11 +8,6 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ChevronDown,
-  ChevronUp,
-  FastForward,
-  Pause,
-  Play,
   SkipForward,
   Volume2,
   VolumeX,
@@ -53,7 +48,6 @@ export function EpicCinematicStage({
   onCompleteRef.current = onComplete;
 
   const [isPaused, setIsPaused] = useState<boolean>(false);
-  const [hudCollapsed, setHudCollapsed] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(() => bgmEngine.isMuted());
 
   // Estado liviano sincronizado ~10 veces por segundo para subtítulos, capítulo y barra de tiempo
@@ -237,8 +231,6 @@ export function EpicCinematicStage({
       } else if (e.key === ' ') {
         e.preventDefault();
         handleTogglePause();
-      } else if (e.key === 'h' || e.key === 'H') {
-        setHudCollapsed((prev) => !prev);
       } else if (e.key === 'ArrowRight') {
         handleNextChapter();
       }
@@ -320,138 +312,54 @@ export function EpicCinematicStage({
         />
       )}
 
-      {/* Subtítulos cinematográficos sobrios y legibles (sin cajas invasivas) */}
+      {/* Subtítulos con recuadro estilo SNES 16-bit */}
       {activeSubtitle && !isScene8TitleVisible && (
-        <div
-          className={`pointer-events-none absolute inset-x-0 z-20 flex justify-center px-6 transition-all duration-300 ${
-            hudCollapsed ? 'bottom-10' : 'bottom-24'
-          }`}
-        >
-          <p
-            id="cinematic-subtitle"
-            className="max-w-3xl text-center font-sans font-semibold text-slate-100 text-base sm:text-lg md:text-xl leading-relaxed tracking-wide drop-shadow-[0_2px_10px_rgba(0,0,0,0.98)] text-balance"
-          >
-            «{activeSubtitle.subtitle}»
-          </p>
+        <div className="pointer-events-none absolute inset-x-0 bottom-10 z-20 flex justify-center px-6">
+          <div className="max-w-3xl w-full bg-gradient-to-b from-[#101b3b] via-[#080d22] to-[#040614] border-2 border-[#00f3ff]/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_0_16px_rgba(0,243,255,0.2),0_12px_36px_rgba(0,0,0,0.95)] p-4 sm:p-5 relative rounded-none">
+            <div className="absolute -top-1 -left-1 w-2 h-2 bg-[#00f3ff]" />
+            <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#00f3ff]" />
+            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-[#00f3ff]" />
+            <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-[#00f3ff]" />
+
+            <div className="flex items-center justify-between mb-1.5 text-[11px] font-mono text-amber-300 uppercase tracking-widest border-b border-cyan-900/50 pb-1">
+              <span>{activeChapter.numberLabel}. {activeChapter.title}</span>
+            </div>
+            <p
+              id="cinematic-subtitle"
+              className="text-center font-sans font-semibold text-slate-100 text-sm sm:text-base md:text-lg leading-relaxed tracking-wide drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)]"
+            >
+              «{activeSubtitle.subtitle}»
+            </p>
+          </div>
         </div>
       )}
 
-      {/* Dock inferior unificado y plegable (Cero backdrop-filter sobre WebGL, cero obstrucción central) */}
-      <div
-        id="cinematic-hud"
-        className={`absolute left-1/2 -translate-x-1/2 bottom-3 w-[min(920px,94vw)] z-30 transition-transform duration-300 ${
-          hudCollapsed ? 'translate-y-[calc(100%-26px)]' : 'translate-y-0'
-        }`}
-      >
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={() => setHudCollapsed((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-sans text-slate-300 hover:text-white bg-[#070b14] border-t border-x border-slate-800 cursor-pointer"
-            >
-              {hudCollapsed ? (
-                <>
-                  <ChevronUp className="w-3.5 h-3.5" />
-                  <span>Controles (H)</span>
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="w-3.5 h-3.5" />
-                  <span>Modo cine (H)</span>
-                </>
-              )}
-            </button>
-          </div>
+      {/* Botones flotantes a la derecha de la pantalla (Silenciar y Omitir) */}
+      <div className="absolute top-6 right-6 z-40 flex items-center gap-3 pointer-events-auto">
+        <button
+          type="button"
+          onClick={() => {
+            bgmEngine.toggleMute();
+          }}
+          aria-label={isMuted ? 'Activar sonido' : 'Silenciar sonido'}
+          title={isMuted ? 'Activar sonido' : 'Silenciar sonido'}
+          className="inline-flex items-center justify-center p-3 text-slate-200 hover:text-white bg-[#0b1329]/95 hover:bg-[#132247] border-2 border-cyan-500/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_16px_rgba(0,243,255,0.3)] cursor-pointer transition-all active:translate-y-0.5 rounded-none"
+        >
+          {isMuted ? (
+            <VolumeX className="w-5 h-5 text-red-400" />
+          ) : (
+            <Volume2 className="w-5 h-5 text-cyan-300" />
+          )}
+        </button>
 
-          <div className="bg-[#070b14] border border-slate-800 px-4 py-2.5 flex flex-col gap-2">
-            {/* Barra de tiempo interactiva */}
-            <div className="flex items-center gap-3">
-              <span className="font-mono tabular-nums text-[11px] text-slate-300 shrink-0">
-                {formatTimecode(uiTimeSec)}
-              </span>
-
-              <input
-                type="range"
-                min={0}
-                max={TOTAL_CINEMATIC_DURATION_SEC}
-                step={0.2}
-                value={Math.min(TOTAL_CINEMATIC_DURATION_SEC, uiTimeSec)}
-                onChange={(e) => handleSeekTo(Number(e.target.value))}
-                aria-label="Línea de tiempo de la cinemática"
-                className="w-full h-1.5 accent-amber-300 bg-slate-800 cursor-pointer"
-              />
-
-              <span className="font-mono tabular-nums text-[11px] text-slate-500 shrink-0">
-                02:30
-              </span>
-
-              <span className="sr-only">{Math.round(progressPct)}%</span>
-            </div>
-
-            {/* Fila inferior de metadatos limpios (sin cápsulas) y controles reales */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-xs text-slate-400 min-w-0">
-                <span className="font-mono tabular-nums text-amber-200/90">
-                  {activeChapter.numberLabel}.
-                </span>
-                <span className="truncate text-slate-200">{activeChapter.title}</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleTogglePause}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans font-medium text-slate-200 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700/80 cursor-pointer transition-colors"
-                >
-                  {isPaused ? (
-                    <>
-                      <Play className="w-3.5 h-3.5" />
-                      <span>Reanudar</span>
-                    </>
-                  ) : (
-                    <>
-                      <Pause className="w-3.5 h-3.5" />
-                      <span>Pausar</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleNextChapter}
-                  title="Avanzar a la siguiente escena (Flecha derecha)"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans font-medium text-slate-200 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700/80 cursor-pointer transition-colors"
-                >
-                  <FastForward className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Escena siguiente</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    bgmEngine.toggleMute();
-                  }}
-                  aria-label={isMuted ? 'Activar sonido' : 'Silenciar sonido'}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-sans font-medium text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700/80 cursor-pointer transition-colors"
-                >
-                  {isMuted ? (
-                    <VolumeX className="w-3.5 h-3.5 text-slate-400" />
-                  ) : (
-                    <Volume2 className="w-3.5 h-3.5 text-amber-200" />
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={finishCinematic}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-sans font-semibold text-slate-950 bg-amber-300 hover:bg-amber-200 cursor-pointer transition-colors"
-                >
-                  <SkipForward className="w-3.5 h-3.5" />
-                  <span>Omitir</span>
-                </button>
-              </div>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={finishCinematic}
+          className="inline-flex items-center gap-2 px-4.5 py-2.5 text-xs sm:text-sm font-display font-bold text-slate-950 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-600 border-2 border-amber-100 shadow-[inset_0_2px_0_rgba(255,255,255,0.7),inset_0_-3px_0_rgba(180,83,9,0.9),0_6px_20px_rgba(245,158,11,0.6)] active:translate-y-0.5 active:shadow-[inset_0_2px_0_rgba(0,0,0,0.3),0_2px_4px_rgba(245,158,11,0.3)] cursor-pointer transition-all uppercase tracking-wider rounded-none"
+        >
+          <SkipForward className="w-4 h-4" />
+          <span>Omitir</span>
+        </button>
       </div>
     </div>
   );

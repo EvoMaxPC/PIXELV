@@ -181,6 +181,90 @@ export const HISTORICAL_CATALOG: Record<string, HistoricalMemoryEntry> = {
       timelineBadge: 'RUTA 1970s · RECONSTRUIDA',
     },
   },
+
+  asteroids: {
+    id: 'asteroids',
+    name: 'Asteroids (Arcade Original 1979)',
+    headline: 'ASTEROIDS — LA INERCIA VECTORIAL DEL ESPACIO CERO',
+    year: 1979,
+    creator: 'Lyle Rains, Ed Logg y Dominic Walsh',
+    company: 'Atari, Inc.',
+    review:
+      'Lanzado en noviembre de 1979 por Atari, Asteroids redefinió la acción espacial con gráficos vectoriales puros QuadraScan XY, física inercial de 360° y fragmentación dinámica de asteroides.',
+    funFact:
+      'Fue uno de los primeros videojuegos en permitir a los jugadores ingresar sus iniciales de 3 letras para inmortalizar récords en la cabina.',
+    restorationMessage:
+      'Has restaurado en PIXELVERSE la firma vectorial de Asteroids (1979) y desbloqueado el Poder Principal DASH ORBITAL.',
+    visualIdentity: {
+      motif: 'generic',
+      accentHex: '#00f3ff',
+      secondaryHex: '#22d3ee',
+      timelineBadge: 'HITO 1979 · RESTAURADO',
+    },
+  },
+
+  'sea-wolf': {
+    id: 'sea-wolf',
+    name: 'Sea Wolf (Arcade Original 1976)',
+    headline: 'SEA WOLF — EL DUELO SUBMARINO EN PERISCOPIO',
+    year: 1976,
+    creator: 'Dave Nutting',
+    company: 'Midway Manufacturing',
+    review:
+      'Lanzado en 1976, Sea Wolf introdujo un gabinete con periscopio óptico real y retícula de mira para torpedear buques de superficie esquivando minas flotantes.',
+    funFact:
+      'Utilizaba espejos y lámparas para proyectar sobre la pantalla la silueta del periscopio dando sensación de inmersión profunda.',
+    restorationMessage:
+      'Has restaurado en PIXELVERSE la memoria naval de Sea Wolf (1976) y desbloqueado el Poder Principal PULSO SONAR.',
+    visualIdentity: {
+      motif: 'generic',
+      accentHex: '#10b981',
+      secondaryHex: '#38bdf8',
+      timelineBadge: 'HITO 1976 · RESTAURADO',
+    },
+  },
+
+  tank: {
+    id: 'tank',
+    name: 'Tank (Arcade Original 1974)',
+    headline: 'TANK — EL DUELO DE LABERINTO Y ORUGAS',
+    year: 1974,
+    creator: 'Steve Bristow y Lyle Rains',
+    company: 'Kee Games / Atari',
+    review:
+      'Lanzado en 1974 por Kee Games, Tank fue un pionero del combate táctico entre dos jugadores en un laberinto con rebote de proyectiles y minas de contacto.',
+    funFact:
+      'Usaba ROMs de diodos dedicadas para almacenar los sprites de los tanques y muros del laberinto.',
+    restorationMessage:
+      'Has restaurado en PIXELVERSE la memoria táctica de Tank (1974) y desbloqueado el BÚNKER MILITAR DE LAS RUINAS.',
+    visualIdentity: {
+      motif: 'generic',
+      accentHex: '#a3e635',
+      secondaryHex: '#facc15',
+      timelineBadge: 'HITO 1974 · RESTAURADO',
+    },
+  },
+
+  'lunar-lander': {
+    id: 'lunar-lander',
+    name: 'Lunar Lander (Arcade Original 1979)',
+    headline: 'LUNAR LANDER — EL ALUNIZAJE DE PRECISIÓN VECTORIAL',
+    year: 1979,
+    creator: 'Howard Delman y Rich Moore',
+    company: 'Atari, Inc.',
+    review:
+      'Lanzado en agosto de 1979, Lunar Lander fue el primer arcade con monitor vectorial QuadraScan XY de Atari, simulando gravedad lunar, empuje regulable y consumo de combustible.',
+    funFact:
+      'Contaba con una palanca de empuje proporcional física única en los salones recreativos.',
+    restorationMessage:
+      'Has restaurado en PIXELVERSE el vuelo vectorial de Lunar Lander (1979) y desbloqueado el SECTOR VECTORIAL Y LENTE CUÁNTICA.',
+    visualIdentity: {
+      motif: 'generic',
+      accentHex: '#a78bfa',
+      secondaryHex: '#00f3ff',
+      timelineBadge: 'HITO 1979 · RESTAURADO',
+    },
+  },
 };
 
 export const MUSEUM_1970S_EXHIBITS: MuseumExhibit1970s[] = [
@@ -349,7 +433,8 @@ export const MUSEUM_1970S_EXHIBITS: MuseumExhibit1970s[] = [
     title: 'Tank',
     creator: 'Steve Bristow y Lyle Rains',
     company: 'Kee Games',
-    mode: 'exhibition',
+    mode: 'playable',
+    linkedGameId: 'tank',
     accentHex: '#a3e635',
     hardwareType: 'Arcade de laberinto · dos vehículos y controles independientes',
     genre: 'Combate táctico de tanques para dos participantes',
@@ -362,12 +447,39 @@ export const MUSEUM_1970S_EXHIBITS: MuseumExhibit1970s[] = [
     historicalSummary:
       'Duelo para dos participantes en un laberinto de muros y minas. Kee Games publicó Tank en 1974; la empresa mantenía una relación estrecha con Atari.',
     museumProfile:
-      'Tank, publicado por Kee Games en 1974, convirtió un laberinto visto desde arriba en un duelo entre dos vehículos. Cada participante debía maniobrar entre muros, vigilar la posición contraria y evitar las minas distribuidas por el terreno. La confrontación dependía tanto de apuntar como de elegir una ruta segura; los obstáculos hacían que el espacio compartido cambiara las decisiones de ambos jugadores. La ficha también recuerda el contexto industrial: Kee Games estaba estrechamente relacionada con Atari, aunque operaba con su propio nombre comercial. El interés de la pieza reside en reunir estrategia espacial, competencia directa y controles dedicados dentro de un gabinete arcade. La ilustración de esta vitrina es un esquema original de PIXELVERSE, creado con formas simples para representar dos tanques abstractos y un laberinto; no utiliza sprites ni material promocional. La exposición documenta el título sin incorporar una modalidad de juego nueva.',
+      'Tank, publicado por Kee Games en 1974, convirtió un laberinto visto desde arriba en un duelo entre dos vehículos. Hito JUGABLE en PIXELVERSE: al superar los 500 PTS desbloqueas el BÚNKER MILITAR DE LAS RUINAS.',
     curatorialNote:
-      'La disposición del laberinto convierte cada pared en cobertura y cada cruce en una decisión táctica.',
+      'Hito JUGABLE en PIXELVERSE (Desafío de las Orugas · Sector Militar Unlocked).',
     illustration: 'tank-duel',
     sourceUrl: 'https://en.wikipedia.org/wiki/Tank_(video_game)',
     sourceLabel: 'Tank (video game) · registro histórico',
+  },
+  {
+    id: 'exhibit-sea-wolf-1976',
+    year: 1976,
+    title: 'Sea Wolf',
+    creator: 'Dave Nutting',
+    company: 'Midway Manufacturing',
+    mode: 'playable',
+    linkedGameId: 'sea-wolf',
+    accentHex: '#10b981',
+    hardwareType: 'Gabinete con periscopio óptico real y microprocesador',
+    genre: 'Simulación naval de disparos',
+    mechanics:
+      'Mirar a través del periscopio, orientar la retícula y disparar torpedos contra convoyes navales.',
+    historicalContribution:
+      'Popularizó el uso de accesorios periscópicos dedicados e interacción de simulación marina.',
+    funFact:
+      'Iba equipado con una pantalla de contadores luminosos arriba del gabinete para mostrar barcos hundidos.',
+    historicalSummary:
+      '1976. Acción naval mediante periscopio óptico. Torpedear convoyes de superficie y esquivar minas flotantes.',
+    museumProfile:
+      'Sea Wolf trasladó la simulación naval a una mira periscópica interactiva. Hito JUGABLE en PIXELVERSE: al alcanzar 400 PTS desbloqueas el Poder Principal PULSO SONAR.',
+    curatorialNote:
+      'Hito JUGABLE en PIXELVERSE (Desafío Naval Periscopio · Pulso Sonar).',
+    illustration: 'arcade-maze',
+    sourceUrl: 'https://en.wikipedia.org/wiki/Sea_Wolf_(video_game)',
+    sourceLabel: 'Sea Wolf (video game) · registro histórico',
   },
   {
     id: 'exhibit-gun-fight-1975',
@@ -480,7 +592,8 @@ export const MUSEUM_1970S_EXHIBITS: MuseumExhibit1970s[] = [
     title: 'Lunar Lander',
     creator: 'Howard Delman y Rich Moore',
     company: 'Atari, Inc.',
-    mode: 'exhibition',
+    mode: 'playable',
+    linkedGameId: 'lunar-lander',
     accentHex: '#a78bfa',
     hardwareType: 'Monitor vectorial QuadraScan XY · Palanca proporcional de empuje',
     genre: 'Simulación arcade de aterrizaje espacial',
@@ -491,11 +604,11 @@ export const MUSEUM_1970S_EXHIBITS: MuseumExhibit1970s[] = [
     funFact:
       'Su palanca proporcional permitía graduar el empuje en lugar de limitarlo a una orden binaria.',
     historicalSummary:
-      'Agosto de 1979. Primer arcade de Atari con generador gráfico vectorial capaz de trazar líneas nítidas de luz pura, simulando inercia gravitatoria, combustible limitado y zoom dinámico al acercarse al cráter.',
+      'Agosto de 1979. Primer arcade de Atari con generador gráfico vectorial capaz de trazar líneas nítidas de luz pura.',
     museumProfile:
-      'Lunar Lander, publicado por Atari en agosto de 1979, propuso controlar una nave durante el descenso hacia una superficie. La máquina representaba el terreno y el vehículo mediante líneas brillantes de un monitor vectorial QuadraScan XY. El jugador administraba el empuje y debía compensar la inercia mientras tenía combustible limitado. La vista podía acercarse al área de aterrizaje, haciendo más precisa la fase final. Su presentación era distinta de los gráficos formados por bloques: el haz trazaba contornos lineales directamente en la pantalla. La pieza de PIXELVERSE es una exhibición histórica, no un minijuego añadido. La ilustración que la acompaña es original y esquemática: muestra un módulo y un horizonte lunar con trazos propios, sin recrear una pantalla ni usar material de Atari. Esta ficha reúne las características y fecha ya documentadas en el catálogo y destaca la relación entre control, física y representación vectorial.',
+      'Lunar Lander, publicado por Atari en agosto de 1979, propuso controlar una nave durante el descenso hacia una superficie. Hito JUGABLE en PIXELVERSE: al alunizar con éxito o lograr 500 PTS desbloqueas la LENTE CUÁNTICA VECTORIAL.',
     curatorialNote:
-      'Exhibición histórica vectorial documentada. Su proyector de haces XY inspira el puzzle de alineación vectorial del ala norte del museo.',
+      'Hito JUGABLE en PIXELVERSE (Desafío de Alunizaje Vectorial).',
     illustration: 'lunar-lander',
     sourceUrl: 'https://en.wikipedia.org/wiki/Lunar_Lander_(video_game)',
     sourceLabel: 'Lunar Lander (video game) · registro histórico',
@@ -506,7 +619,7 @@ export const MUSEUM_1970S_EXHIBITS: MuseumExhibit1970s[] = [
     title: 'Asteroids',
     creator: 'Lyle Rains, Ed Logg y Dominic Walsh',
     company: 'Atari, Inc.',
-    mode: 'playable-pending',
+    mode: 'playable',
     linkedGameId: 'asteroids',
     accentHex: '#22d3ee',
     hardwareType: 'CPU MOS 6502A + Generador Vectorial Digital (DVG)',
@@ -514,15 +627,15 @@ export const MUSEUM_1970S_EXHIBITS: MuseumExhibit1970s[] = [
     mechanics:
       'Girar y propulsar una nave con inercia, disparar a rocas que se fragmentan y registrar iniciales junto a la puntuación.',
     historicalContribution:
-      'Combinó control inercial y gráficos vectoriales en un arcade espacial de gran impacto; su desafío en PIXELVERSE sigue pendiente de implementación.',
+      'Combinó control inercial y gráficos vectoriales en un arcade espacial de gran impacto.',
     funFact:
       'La tabla de récords permitía registrar las iniciales de tres letras de cada jugador.',
     historicalSummary:
-      'Noviembre de 1979. Cerró la década como un gran éxito comercial de Atari: física inercial en 360 grados, rocas vectoriales que se fragmentan e iniciales de tres letras para registrar récords.',
+      'Noviembre de 1979. Física inercial en 360 grados, rocas vectoriales que se fragmentan y marcador digital.',
     museumProfile:
-      'Asteroids apareció en noviembre de 1979 y empleó gráficos vectoriales para dibujar una nave, el espacio y rocas que se fragmentaban al recibir impactos. La nave podía girar en cualquier dirección y su movimiento conservaba inercia, de modo que orientar el vehículo y controlar su trayectoria eran decisiones distintas. La máquina combinaba una CPU MOS 6502A con un generador vectorial digital. El registro de iniciales permitía asociar una marca personal a la puntuación. La ficha conecta estos elementos con una tradición de juegos espaciales donde el control de la trayectoria es tan importante como apuntar. La imagen que acompaña la pieza es una ilustración original de PIXELVERSE hecha con polígonos geométricos, no una captura de pantalla ni material oficial. El texto se limita a los datos históricos y técnicos consignados en el catálogo, y propone observar cómo una pantalla de líneas podía transmitir movimiento, fragmentación y orientación.',
+      'Asteroids apareció en noviembre de 1979 y empleó gráficos vectoriales para dibujar una nave, el espacio y rocas. Hito JUGABLE en PIXELVERSE: al superar los 600 PTS desbloqueas el Poder Principal DASH ORBITAL.',
     curatorialNote:
-      'Desafío jugable acordado para PIXELVERSE; su implementación todavía está pendiente y esta vitrina no puede iniciar una partida.',
+      'Hito JUGABLE en PIXELVERSE (Desafío Vectorial 1979 · Dash Orbital).',
     illustration: 'asteroids',
     sourceUrl: 'https://www.museumofplay.org/games/asteroids/',
     sourceLabel: 'The Strong National Museum of Play · Asteroids',

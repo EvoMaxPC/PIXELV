@@ -30,9 +30,14 @@ export type PixelAbilityId =
 export type QuestProgressStatus = 'inactive' | 'active' | 'completed';
 
 export interface SavedPlayerOptions {
+  playerName: string;
   skinColor: string;
   hairColor: string;
   shirtColor: string;
+  bootColor: string;
+  outfitId: string;
+  accessories: string[];
+  transformationId: string | null;
   gbGreenMode: boolean;
   audioMuted?: boolean;
 }
@@ -137,9 +142,14 @@ export function createDefaultRpgState(): RpgExplorationState {
     achievementsUnlocked: [],
     lastManualSaveIso: null,
     savedOptions: {
+      playerName: 'Pixel',
       skinColor: '#ffccaa',
       hairColor: '#331100',
       shirtColor: '#00f3ff',
+      bootColor: '#1e293b',
+      outfitId: 'classic',
+      accessories: [],
+      transformationId: null,
       gbGreenMode: false,
       audioMuted: false,
     },
@@ -169,6 +179,10 @@ export function createInitialProgressState(): PixelverseProgressState {
     games: {
       pong: createDefaultRecord('pong'),
       breakout: createDefaultRecord('breakout'),
+      asteroids: createDefaultRecord('asteroids'),
+      'sea-wolf': createDefaultRecord('sea-wolf'),
+      tank: createDefaultRecord('tank'),
+      'lunar-lander': createDefaultRecord('lunar-lander'),
       'donkey-kong': createDefaultRecord('donkey-kong'),
       'space-invaders': createDefaultRecord('space-invaders'),
       'glitch-trail': createDefaultRecord('glitch-trail'),
@@ -181,7 +195,16 @@ export function createInitialProgressState(): PixelverseProgressState {
 }
 
 function countRestored(games: Record<string, GameRestorationRecord>): number {
-  const coreHistoricalIds = ['pong', 'space-invaders', 'glitch-trail'];
+  const coreHistoricalIds = [
+    'pong',
+    'breakout',
+    'asteroids',
+    'sea-wolf',
+    'tank',
+    'lunar-lander',
+    'space-invaders',
+    'glitch-trail',
+  ];
   return coreHistoricalIds.filter((id) => games[id]?.memoryUnlocked).length;
 }
 
@@ -224,6 +247,10 @@ function deriveCoherentRpgState(
 ): RpgExplorationState {
   const pongDone = Boolean(games['pong']?.memoryUnlocked);
   const breakoutDone = Boolean(games['breakout']?.memoryUnlocked);
+  const asteroidsDone = Boolean(games['asteroids']?.memoryUnlocked);
+  const seawolfDone = Boolean(games['sea-wolf']?.memoryUnlocked);
+  const tankDone = Boolean(games['tank']?.memoryUnlocked);
+  const landerDone = Boolean(games['lunar-lander']?.memoryUnlocked);
   const invadersDone = Boolean(games['space-invaders']?.memoryUnlocked);
   const dkDone = Boolean(games['donkey-kong']?.memoryUnlocked);
 
@@ -231,9 +258,23 @@ function deriveCoherentRpgState(
   items.add('item-bitacora-cero');
   if (pongDone) {
     items.add('item-lampara-fosforo');
+    items.add('item-polvo-fosforo');
   }
   if (breakoutDone) {
     items.add('item-prisma-breakout');
+    items.add('item-espada-cambiante');
+  }
+  if (asteroidsDone) {
+    items.add('item-modulo-orbital');
+  }
+  if (seawolfDone) {
+    items.add('item-sonar-profundidad');
+  }
+  if (tankDone) {
+    items.add('item-llave-bunker-militar');
+  }
+  if (landerDone) {
+    items.add('item-lente-cuantica-vectorial');
   }
   if (invadersDone) {
     items.add('item-pase-astral-80s');
@@ -244,7 +285,7 @@ function deriveCoherentRpgState(
 
   const unlockedIslands = new Set<string>(rpg.unlockedIslands);
   unlockedIslands.add('island-70s');
-  if (invadersDone) {
+  if (invadersDone || dkDone) {
     unlockedIslands.add('island-80s');
   }
 
@@ -461,6 +502,10 @@ export function loadProgressState(): PixelverseProgressState {
             savedOptions:
               rawRpg.savedOptions && typeof rawRpg.savedOptions === 'object'
                 ? {
+                    playerName:
+                      typeof rawRpg.savedOptions.playerName === 'string'
+                        ? rawRpg.savedOptions.playerName
+                        : 'Pixel',
                     skinColor:
                       typeof rawRpg.savedOptions.skinColor === 'string'
                         ? rawRpg.savedOptions.skinColor
@@ -473,13 +518,31 @@ export function loadProgressState(): PixelverseProgressState {
                       typeof rawRpg.savedOptions.shirtColor === 'string'
                         ? rawRpg.savedOptions.shirtColor
                         : '#00f3ff',
+                    bootColor:
+                      typeof rawRpg.savedOptions.bootColor === 'string'
+                        ? rawRpg.savedOptions.bootColor
+                        : '#1e293b',
+                    outfitId:
+                      typeof rawRpg.savedOptions.outfitId === 'string'
+                        ? rawRpg.savedOptions.outfitId
+                        : 'classic',
+                    accessories: sanitizeStringArray(rawRpg.savedOptions.accessories),
+                    transformationId:
+                      typeof rawRpg.savedOptions.transformationId === 'string'
+                        ? rawRpg.savedOptions.transformationId
+                        : null,
                     gbGreenMode: Boolean(rawRpg.savedOptions.gbGreenMode),
                     audioMuted: Boolean(rawRpg.savedOptions.audioMuted),
                   }
                 : {
+                    playerName: 'Pixel',
                     skinColor: '#ffccaa',
                     hairColor: '#331100',
                     shirtColor: '#00f3ff',
+                    bootColor: '#1e293b',
+                    outfitId: 'classic',
+                    accessories: [],
+                    transformationId: null,
                     gbGreenMode: false,
                     audioMuted: false,
                   },
@@ -1120,9 +1183,15 @@ export function savePlayerOptions(
     ...opts,
   };
   if (
+    merged.playerName === prev.rpg.savedOptions.playerName &&
     merged.skinColor === prev.rpg.savedOptions.skinColor &&
     merged.hairColor === prev.rpg.savedOptions.hairColor &&
     merged.shirtColor === prev.rpg.savedOptions.shirtColor &&
+    merged.bootColor === prev.rpg.savedOptions.bootColor &&
+    merged.outfitId === prev.rpg.savedOptions.outfitId &&
+    merged.transformationId === prev.rpg.savedOptions.transformationId &&
+    merged.accessories.length === prev.rpg.savedOptions.accessories.length &&
+    merged.accessories.every((id, index) => id === prev.rpg.savedOptions.accessories[index]) &&
     merged.gbGreenMode === prev.rpg.savedOptions.gbGreenMode &&
     Boolean(merged.audioMuted) === Boolean(prev.rpg.savedOptions.audioMuted)
   ) {

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Award,
   Check,
@@ -21,12 +21,30 @@ import {
 import { retroAudio } from './audio/retroAudio';
 import { bgmEngine } from './audio/bgmEngine';
 import { Breakout1976Stage } from './stages/Breakout1976Stage';
+import { Asteroids1979Stage } from './stages/Asteroids1979Stage';
+import { SeaWolf1976Stage } from './stages/SeaWolf1976Stage';
+import { Tank1974Stage } from './stages/Tank1974Stage';
+import { LunarLander1979Stage } from './stages/LunarLander1979Stage';
 import { HD2DDonkeyKongStage } from './stages/DonkeyKongStage';
 import { HD2DSpaceInvadersStage } from './stages/SpaceInvadersStage';
 import { EpicCinematicStage } from './stages/EpicCinematicStage';
 import { GlitchTrailStage } from './stages/GlitchTrailStage';
 import { Pong1972Stage } from './stages/Pong1972Stage';
 import { Origin70sIsland, Island70sArrivalMode } from './island/Origin70sIsland';
+import { drawPixelAvatar4Dir } from './island/island70sRenderer';
+import type { FacingDirection } from './rpg/rpgContent';
+import {
+  ACCESSORIES,
+  AvatarAppearance,
+  AvatarChoice,
+  BOOT_SWATCHES,
+  DEFAULT_AVATAR_APPEARANCE,
+  HAIR_SWATCHES,
+  OUTFITS,
+  SHIRT_SWATCHES,
+  SKIN_SWATCHES,
+  TRANSFORMATIONS,
+} from './avatar/avatarOptions';
 import {
   BREAKOUT_UNLOCK_SCORE,
   calmGuardianCreature,
@@ -68,13 +86,17 @@ type ViewStateId =
   | 'state-avatar'
   | 'state-pong'
   | 'state-breakout'
+  | 'state-asteroids'
+  | 'state-seawolf'
+  | 'state-tank'
+  | 'state-lunar-lander'
   | 'state-archipelago'
   | 'state-platformer'
   | 'state-invaders'
   | 'state-dk-classic';
 
 const MASTER_SERIAL = 'zudoka26';
-const SECRET_KEY_SEQUENCE = ['a', 'd', 's', 'w', 'a', 'd', 's', 'w', 'b', 'a'];
+const SECRET_KEY_SEQUENCE = ['w', 's', 'a', 'd', 'w', 's', 'a', 'd', 'b', 'a'];
 
 const UNLOCKABLE_LEVELS: {
   id: ViewStateId;
@@ -113,6 +135,30 @@ const UNLOCKABLE_LEVELS: {
     subtitle: 'Sala Secreta de las Cuatro Bandas · Meta 400 PTS',
   },
   {
+    id: 'state-seawolf',
+    code: 'NAV-76',
+    title: 'Sea Wolf (1976)',
+    subtitle: 'Simulación Naval Periscopio · Meta 400 PTS',
+  },
+  {
+    id: 'state-tank',
+    code: 'TAK-74',
+    title: 'Tank (1974)',
+    subtitle: 'Duelo de Laberinto y Orugas · Meta 500 PTS',
+  },
+  {
+    id: 'state-asteroids',
+    code: 'AST-79',
+    title: 'Asteroids (1979)',
+    subtitle: 'Inercia Vectorial QuadraScan · Meta 600 PTS',
+  },
+  {
+    id: 'state-lunar-lander',
+    code: 'LND-79',
+    title: 'Lunar Lander (1979)',
+    subtitle: 'Alunizaje de Precisión · Meta 500 PTS',
+  },
+  {
     id: 'state-platformer',
     code: 'NIV-02',
     title: 'El Sendero del Glitch Perdido',
@@ -145,6 +191,10 @@ class GameManager {
     'state-avatar',
     'state-pong',
     'state-breakout',
+    'state-asteroids',
+    'state-seawolf',
+    'state-tank',
+    'state-lunar-lander',
     'state-archipelago',
     'state-platformer',
     'state-invaders',
@@ -245,95 +295,109 @@ class GameManager {
 /* =========================================
    CONSTANTES DE AVATAR 2D Y SPRITES PIXEL-ART
    ========================================= */
-const AVATAR_MATRIX: string[] = [
-  '...HHHHHH...',
-  '..HHHHHHHH..',
-  '.HHhhhhhhHH.',
-  '.HHSSSSSSHH.',
-  '..SSSSSSSS..',
-  '..SEWSSEWS..',
-  '..SSSSSSSS..',
-  '...sSSSSs...',
-  '..CCCCCCCC..',
-  '.CCCCCCCCCC.',
-  '.SScCCCCcSS.',
-  '.SS.BBBB.SS.',
-  '...CCCCCC...',
-  '...CC..CC...',
-  '..cCC..CCc..',
-  '..KKK..KKK..',
-];
+function PixelCharacterPreview({ skinColor, hairColor, shirtColor, appearance }: {
+  skinColor: string;
+  hairColor: string;
+  shirtColor: string;
+  appearance: AvatarAppearance;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [facing, setFacing] = useState<FacingDirection>('down');
+  const [walking, setWalking] = useState(false);
+  const walkTimerRef = useRef<number | null>(null);
 
-function getCellClass(code: string): string {
-  switch (code) {
-    case 'H':
-      return 'px-cell px-hair';
-    case 'h':
-      return 'px-cell px-hair-shade';
-    case 'S':
-      return 'px-cell px-skin';
-    case 's':
-      return 'px-cell px-skin-shade';
-    case 'E':
-      return 'px-cell px-eye';
-    case 'W':
-      return 'px-cell px-eye-shine';
-    case 'C':
-      return 'px-cell px-shirt';
-    case 'c':
-      return 'px-cell px-shirt-shade';
-    case 'B':
-      return 'px-cell px-belt';
-    case 'K':
-      return 'px-cell px-boots';
-    default:
-      return 'px-cell px-empty';
-  }
-}
+  const previewDirection = useCallback((direction: FacingDirection) => {
+    setFacing(direction);
+    setWalking(true);
+    if (walkTimerRef.current !== null) window.clearTimeout(walkTimerRef.current);
+    walkTimerRef.current = window.setTimeout(() => {
+      walkTimerRef.current = null;
+      setWalking(false);
+    }, 520);
+  }, []);
 
-const SKIN_SWATCHES = [
-  { label: 'Durazno', hex: '#ffccaa', bgClass: 'bg-[#ffccaa]' },
-  { label: 'Bronce', hex: '#d4a373', bgClass: 'bg-[#d4a373]' },
-  { label: 'Ébano', hex: '#8b5a2b', bgClass: 'bg-[#8b5a2b]' },
-  { label: 'Marfil', hex: '#fde2c8', bgClass: 'bg-[#fde2c8]' },
-];
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    let animationId = 0;
+    const render = (now: number) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawPixelAvatar4Dir(ctx, 24, 49, facing, walking, false, now / 1000, skinColor, hairColor, shirtColor, { appearance });
+      animationId = window.requestAnimationFrame(render);
+    };
+    animationId = window.requestAnimationFrame(render);
+    return () => {
+      window.cancelAnimationFrame(animationId);
+    };
+  }, [facing, walking, hairColor, shirtColor, skinColor, appearance]);
 
-const HAIR_SWATCHES = [
-  { label: 'Castaño', hex: '#331100', bgClass: 'bg-[#331100]' },
-  { label: 'Dorado', hex: '#eebb00', bgClass: 'bg-[#eebb00]' },
-  { label: 'Carmesí', hex: '#aa0000', bgClass: 'bg-[#aa0000]' },
-  { label: 'Cian Neón', hex: '#00f3ff', bgClass: 'bg-[#00f3ff]' },
-];
+  useEffect(() => () => {
+    if (walkTimerRef.current !== null) window.clearTimeout(walkTimerRef.current);
+  }, []);
 
-const SHIRT_SWATCHES = [
-  { label: 'Cian', hex: '#00f3ff', bgClass: 'bg-[#00f3ff]' },
-  { label: 'Magenta', hex: '#ff00ff', bgClass: 'bg-[#ff00ff]' },
-  { label: 'Verde Neón', hex: '#39ff14', bgClass: 'bg-[#39ff14]' },
-  { label: 'Ámbar', hex: '#facc15', bgClass: 'bg-[#facc15]' },
-];
+  const handleDirectionKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const directionByKey: Record<string, FacingDirection> = {
+      ArrowUp: 'up', ArrowLeft: 'left', ArrowDown: 'down', ArrowRight: 'right',
+    };
+    const direction = directionByKey[event.key];
+    if (!direction) return;
+    event.preventDefault();
+    previewDirection(direction);
+  };
 
-function CssPixelCharacter() {
+  const directions: { direction: FacingDirection; label: string }[] = [
+    { direction: 'up', label: 'Atras' },
+    { direction: 'left', label: 'Izquierda' },
+    { direction: 'down', label: 'Frente' },
+    { direction: 'right', label: 'Derecha' },
+  ];
+
   return (
-    <div className="flex flex-col items-center">
-      <div
-        className="pixel-character-grid"
-        aria-label="Personaje Pixel-Art HD-2D con sombra reactiva"
-      >
-        {AVATAR_MATRIX.map((row, rIdx) =>
-          row
-            .split('')
-            .map((code, cIdx) => (
-              <div key={`${rIdx}-${cIdx}`} className={getCellClass(code)} />
-            ))
-        )}
+    <div className="flex flex-col items-center" tabIndex={0} onKeyDown={handleDirectionKey} aria-label="Vista previa. Usa las flechas para mover a Pixel">
+      <canvas
+        ref={canvasRef}
+        width={48}
+        height={56}
+        className="h-[min(46vh,22rem)] w-auto max-w-full [image-rendering:pixelated] drop-shadow-[0_14px_14px_rgba(0,0,0,0.65)]"
+        aria-label={`Pixel, personaje explorador, vista ${directions.find((item) => item.direction === facing)?.label}`}
+        role="img"
+      />
+      <div className="mt-3 grid grid-cols-4 gap-1" aria-label="Vista del personaje">
+        {directions.map(({ direction, label }) => (
+          <button
+            key={direction}
+            type="button"
+            onClick={() => previewDirection(direction)}
+            aria-pressed={facing === direction}
+            aria-label={`Ver a Pixel de ${label.toLowerCase()}`}
+            className={`border px-2 py-1 text-[9px] font-mono uppercase transition-colors ${facing === direction ? 'border-amber-300 bg-amber-300/15 text-amber-100' : 'border-cyan-100/15 text-slate-400 hover:border-cyan-200/60 hover:text-white'}`}
+          >{label}</button>
+        ))}
       </div>
-      <div className="avatar-floor-aura mt-5" aria-hidden="true" />
+      <span className="mt-2 text-[9px] font-mono tracking-[0.25em] text-cyan-100/55">PIXEL · EXPLORADOR</span>
     </div>
   );
 }
 
+function AvatarPaletteRow({ title, value, options, onSelect }: { title: string; value: string; options: { label: string; hex: string; bgClass: string }[]; onSelect: (hex: string) => void }) {
+  const selected = options.find((option) => option.hex === value);
+  return <fieldset className="border border-cyan-100/15 bg-[#06111d]/80 p-3 sm:p-4"><legend className="px-2 font-mono text-[10px] uppercase tracking-[0.18em] text-cyan-100">{title}</legend><div className="mb-3 flex items-center justify-between gap-2 font-mono text-[10px]"><span className="text-slate-500">ACTIVE SHADE</span><span className="text-amber-200">{selected?.label}</span></div><div className="grid grid-cols-6 gap-2 sm:grid-cols-8">{options.map((option) => { const active=option.hex===value; return <button key={option.hex} type="button" onClick={()=>{retroAudio.uiClick();onSelect(option.hex);}} aria-pressed={active} aria-label={title+': '+option.label} title={option.label} style={{borderColor:active?option.hex:undefined,boxShadow:active?'0 0 0 2px '+option.hex+'66, 0 0 12px '+option.hex+'55':undefined}} className={'aspect-square border-2 p-1 transition-transform hover:scale-110 '+(active?'scale-110':'border-white/20')}><span className={'block h-full w-full border border-black/35 '+option.bgClass}/></button>;})}</div></fieldset>;
+}
+
+function AvatarChoiceSprite({ choice, category, skinColor, hairColor, shirtColor, appearance }: { choice: AvatarChoice; category: 'outfit'|'accessory'|'transformation'; skinColor: string; hairColor: string; shirtColor: string; appearance: AvatarAppearance }) {
+  const canvasRef=useRef<HTMLCanvasElement|null>(null);
+  useEffect(()=>{const ctx=canvasRef.current?.getContext('2d');if(!ctx)return;ctx.clearRect(0,0,48,56);const sample:AvatarAppearance={...appearance,outfitId:category==='outfit'?choice.id:appearance.outfitId,accessories:category==='accessory'?Array.from(new Set([...appearance.accessories,choice.id])):appearance.accessories,transformationId:category==='transformation'?choice.id:appearance.transformationId};drawPixelAvatar4Dir(ctx,24,49,'down',false,false,1.2,skinColor,hairColor,shirtColor,{appearance:sample,reducedMotion:true});},[appearance,category,choice.id,hairColor,shirtColor,skinColor]);
+  return <canvas ref={canvasRef} width={48} height={56} className="h-16 w-[3.4rem] [image-rendering:pixelated]" aria-hidden="true"/>;
+}
+
+function AvatarChoiceGrid({ title, options, selected, category, onSelect, skinColor, hairColor, shirtColor, appearance }: { title: string; options: AvatarChoice[]; selected: string|null; category: 'outfit'|'accessory'|'transformation'; onSelect:(id:string)=>void; skinColor:string; hairColor:string; shirtColor:string; appearance:AvatarAppearance }) {
+  return <div className="space-y-3"><div className="flex items-center justify-between font-mono text-[10px] tracking-[0.18em] text-cyan-100"><span>{title}</span><span className="text-slate-500">{options.length} DESIGNS</span></div><div className="grid grid-cols-2 gap-2 xl:grid-cols-3">{options.map(choice=>{const active=category==='accessory'?appearance.accessories.includes(choice.id):selected===choice.id;return <button key={choice.id} type="button" onClick={()=>onSelect(choice.id)} aria-pressed={active} className={'flex min-h-24 items-center gap-2 border p-2 text-left transition-colors '+(active?'border-amber-200 bg-amber-200/10 text-white':'border-white/10 bg-black/25 text-slate-300 hover:border-cyan-100/40')}><AvatarChoiceSprite choice={choice} category={category} skinColor={skinColor} hairColor={hairColor} shirtColor={shirtColor} appearance={appearance}/><span className="min-w-0"><span className="block truncate font-mono text-[10px] font-bold" style={{color:active?'#fde68a':choice.accent}}>{choice.name}</span><span className="mt-1 block text-[9px] leading-snug text-slate-500">{choice.description}</span></span></button>;})}</div></div>;
+}
+
 export default function App() {
   const managerRef = useRef<GameManager | null>(null);
+  const breakoutReturnToNorthRef = useRef(false);
   const [windowReady, setWindowReady] = useState<boolean>(() =>
     typeof document !== 'undefined' ? document.readyState === 'complete' : false
   );
@@ -353,6 +417,9 @@ export default function App() {
   );
 
   // Estado 3: Variables CSS de identidad del Arquitecto (persistidas en el guardado)
+  const [playerName, setPlayerName] = useState<string>(
+    () => progressState.rpg.savedOptions?.playerName || 'Pixel'
+  );
   const [skinColor, setSkinColor] = useState<string>(
     () => progressState.rpg.savedOptions?.skinColor || SKIN_SWATCHES[0].hex
   );
@@ -362,6 +429,30 @@ export default function App() {
   const [shirtColor, setShirtColor] = useState<string>(
     () => progressState.rpg.savedOptions?.shirtColor || SHIRT_SWATCHES[0].hex
   );
+  const [bootColor, setBootColor] = useState<string>(
+    () => progressState.rpg.savedOptions?.bootColor || DEFAULT_AVATAR_APPEARANCE.bootColor
+  );
+  const [outfitId, setOutfitId] = useState<string>(
+    () => progressState.rpg.savedOptions?.outfitId || DEFAULT_AVATAR_APPEARANCE.outfitId
+  );
+  const [accessories, setAccessories] = useState<string[]>(
+    () => progressState.rpg.savedOptions?.accessories || DEFAULT_AVATAR_APPEARANCE.accessories
+  );
+  const [transformationId, setTransformationId] = useState<string | null>(
+    () => progressState.rpg.savedOptions?.transformationId ?? DEFAULT_AVATAR_APPEARANCE.transformationId
+  );
+  const [avatarTab, setAvatarTab] = useState<'skin' | 'hair' | 'clothes' | 'boots' | 'outfits' | 'accessories' | 'rare'>('skin');
+  const compatibleAccessories = useMemo(() => {
+    const blocked = transformationId
+      ? ['cap', 'hat', 'bandana', 'headphones', 'mask']
+      : ['mage', 'pirate', 'cowboy', 'detective'].includes(outfitId)
+        ? ['cap', 'hat', 'bandana', 'headphones']
+        : [];
+    return accessories.filter((id) => !blocked.includes(id));
+  }, [accessories, outfitId, transformationId]);
+  const avatarAppearance = useMemo<AvatarAppearance>(() => ({
+    bootColor, outfitId, accessories: compatibleAccessories, transformationId,
+  }), [bootColor, compatibleAccessories, outfitId, transformationId]);
 
   // Modo de entrada a Pong (con o sin intro de pelota blanca)
   const [pongSkipIntro, setPongSkipIntro] = useState<boolean>(false);
@@ -379,15 +470,32 @@ export default function App() {
   const saveFeedbackTimerRef = useRef<number | null>(null);
   const islandManualSaveRef = useRef<(() => string) | null>(null);
 
-  // Desbloqueo maestro de niveles mediante serial y código secreto ADSWADSWBA
+  // Desbloqueo maestro de niveles mediante serial y código secreto WSADWSADBA
   const [serialInput, setSerialInput] = useState<string>('');
-  const [masterUnlocked, setMasterUnlocked] = useState<boolean>(false);
+  const [masterUnlocked, setMasterUnlocked] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage.getItem('pixelverse_master_unlocked') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [serialStatus, setSerialStatus] = useState<'idle' | 'error' | 'unlocked'>('idle');
   const [levelMenuOpen, setLevelMenuOpen] = useState<boolean>(false);
   const [codeModalOpen, setCodeModalOpen] = useState<boolean>(false);
 
-  // Estado para revelar el botón CÓDIGO en el menú inicial tras la secuencia ADSWADSWBA
-  const [codeButtonRevealed, setCodeButtonRevealed] = useState<boolean>(false);
+  // Estado para revelar el botón CODE en el menú inicial tras la secuencia WSADWSADBA
+  const [codeButtonRevealed, setCodeButtonRevealed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return (
+        window.localStorage.getItem('pixelverse_code_button_revealed') === 'true' ||
+        window.localStorage.getItem('pixelverse_master_unlocked') === 'true'
+      );
+    } catch {
+      return false;
+    }
+  });
   const [codeGlitchEffect, setCodeGlitchEffect] = useState<boolean>(false);
   const [pixelCeremonyActive, setPixelCeremonyActive] = useState<boolean>(false);
   const secretSequenceIndexRef = useRef<number>(0);
@@ -460,11 +568,16 @@ export default function App() {
         skinColor,
         hairColor,
         shirtColor,
+        playerName,
+        bootColor,
+        outfitId,
+        accessories,
+        transformationId,
         gbGreenMode: isGbGreenMode,
         audioMuted: isAudioMuted,
       })
     );
-  }, [skinColor, hairColor, shirtColor, isGbGreenMode, isAudioMuted]);
+  }, [playerName, skinColor, hairColor, shirtColor, bootColor, outfitId, accessories, transformationId, isGbGreenMode, isAudioMuted]);
 
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null): boolean => {
@@ -509,15 +622,22 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [activeState]);
 
-  // Detector de la secuencia secreta ADSWADSWBA en la pantalla inicial
+  // Detector de la secuencia secreta WSADWSADBA en la pantalla inicial
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null): boolean => {
       if (!(target instanceof HTMLElement)) return false;
       const tag = target.tagName;
-      return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable;
+      return (
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT' ||
+        target.isContentEditable ||
+        Boolean(target.closest('[contenteditable="true"]'))
+      );
     };
 
     const onSecretKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
       // Activo únicamente cuando se encuentra en la pantalla inicial ('state-title') y sin modales ni inputs
       if (activeState !== 'state-title') {
         secretSequenceIndexRef.current = 0;
@@ -540,6 +660,9 @@ export default function App() {
         if (secretSequenceIndexRef.current === SECRET_KEY_SEQUENCE.length) {
           secretSequenceIndexRef.current = 0;
           setCodeButtonRevealed(true);
+          try {
+            window.localStorage.setItem('pixelverse_code_button_revealed', 'true');
+          } catch {}
           setCodeGlitchEffect(true);
           retroAudio.portalVictory();
           window.dispatchEvent(new CustomEvent('pixelverse-shake'));
@@ -604,12 +727,57 @@ export default function App() {
     managerRef.current?.transitionTo('state-archipelago');
   }, [progressState.island70s.lastIslandPos]);
 
+  const handleRandomizeAvatar = useCallback(() => {
+    const pick = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
+    setSkinColor(pick(SKIN_SWATCHES).hex);
+    setHairColor(pick(HAIR_SWATCHES).hex);
+    setShirtColor(pick(SHIRT_SWATCHES).hex);
+    setBootColor(pick(BOOT_SWATCHES).hex);
+    setOutfitId(pick(OUTFITS).id);
+    setAccessories(ACCESSORIES.filter(() => Math.random() < 0.2).map((item) => item.id));
+    setTransformationId(Math.random() < 0.25 ? pick(TRANSFORMATIONS).id : null);
+    retroAudio.uiClick();
+  }, []);
+
+  const toggleAvatarAccessory = useCallback((id: string) => {
+    const headwear = ['cap', 'hat', 'bandana', 'headphones'];
+    setAccessories((current) => {
+      if (current.includes(id)) return current.filter((item) => item !== id);
+      const conflicts = headwear.includes(id) ? headwear : id === 'mask' || id === 'scarf' ? ['mask', 'scarf'] : [];
+      return [...current.filter((item) => !conflicts.includes(item)), id];
+    });
+  }, []);
+
+  const chooseAvatarOutfit = useCallback((id: string) => {
+    setOutfitId(id);
+    if (['mage', 'pirate', 'cowboy', 'detective'].includes(id)) {
+      setAccessories((current) => current.filter((item) => !['cap', 'hat', 'bandana', 'headphones'].includes(item)));
+    }
+  }, []);
+
+  const chooseTransformation = useCallback((id: string) => {
+    if (transformationId === id) {
+      setTransformationId(null);
+      return;
+    }
+    setTransformationId(id);
+    setAccessories((items) => items.filter((item) => !['cap', 'hat', 'bandana', 'headphones', 'mask'].includes(item)));
+  }, [transformationId]);
+
   const handleValidateSerial = useCallback(
     (e?: React.FormEvent) => {
       if (e) e.preventDefault();
-      const normalized = serialInput.trim().toLowerCase();
-      if (normalized === 'pixel' || normalized === MASTER_SERIAL) {
+      const normalized = serialInput.trim().toUpperCase();
+      if (
+        normalized === 'ZUKA' ||
+        normalized === 'PIXEL' ||
+        normalized === MASTER_SERIAL.toUpperCase()
+      ) {
         setMasterUnlocked(true);
+        try {
+          window.localStorage.setItem('pixelverse_master_unlocked', 'true');
+          window.localStorage.setItem('pixelverse_code_button_revealed', 'true');
+        } catch {}
         setSerialStatus('unlocked');
         setPixelCeremonyActive(true);
         retroAudio.portalVictory();
@@ -1074,6 +1242,23 @@ export default function App() {
         {/* Botones apilados verticalmente y centrados sobre la ilustración */}
         <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center space-y-2.5 w-full px-4">
           <div className="flex flex-col items-center space-y-2 w-56 sm:w-64 max-w-full">
+            {/* CÓDIGO (CODE) - Posicionado directamente ENCIMA de START */}
+            {(codeButtonRevealed || masterUnlocked) && (
+              <button
+                id="btn-code-modal"
+                type="button"
+                onClick={() => {
+                  retroAudio.uiClick();
+                  setCodeModalOpen(true);
+                }}
+                className={`w-full py-2.5 sm:py-3 bg-gradient-to-b from-emerald-300 via-emerald-400 to-emerald-600 text-black border-2 border-emerald-100 shadow-[0_4px_0_#166534,0_0_20px_rgba(16,185,129,0.6)] font-display font-black tracking-widest text-xs sm:text-sm uppercase cursor-pointer hover:brightness-110 active:translate-y-1 active:shadow-none transition-all text-center ${
+                  codeGlitchEffect ? 'btn-code-reveal-anim' : ''
+                }`}
+              >
+                CODE
+              </button>
+            )}
+
             {/* START */}
             <button
               id="btn-start"
@@ -1100,23 +1285,6 @@ export default function App() {
             >
               CONTINUAR
             </button>
-
-            {/* CÓDIGO - Solo visible tras introducir la secuencia secreta ADSWADSWBA o haber activado el desbloqueo maestro */}
-            {(codeButtonRevealed || masterUnlocked) && (
-              <button
-                id="btn-code-modal"
-                type="button"
-                onClick={() => {
-                  retroAudio.uiClick();
-                  setCodeModalOpen(true);
-                }}
-                className={`w-full py-2.5 sm:py-3 bg-gradient-to-b from-emerald-300 via-emerald-400 to-emerald-600 text-black border-2 border-emerald-100 shadow-[0_4px_0_#166534,0_0_20px_rgba(16,185,129,0.6)] font-display font-black tracking-widest text-xs sm:text-sm uppercase cursor-pointer hover:brightness-110 active:translate-y-1 active:shadow-none transition-all text-center ${
-                  codeGlitchEffect ? 'btn-code-reveal-anim' : ''
-                }`}
-              >
-                CÓDIGO
-              </button>
-            )}
           </div>
 
           <p className="text-[10px] font-mono-tabular tracking-[0.22em] text-[#00f3ff] font-bold uppercase text-center drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]">
@@ -1126,48 +1294,51 @@ export default function App() {
           </p>
         </div>
 
-        {/* Modal de Ingreso de Código / Serial Maestro */}
+        {/* Modal de Ingreso de Código CODE */}
         {codeModalOpen && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/82 backdrop-blur-sm p-4">
-            <div className="glass-panel rounded-xl p-6 sm:p-8 max-w-md w-full space-y-5 border border-[#00f3ff]/60 shadow-[0_0_35px_rgba(0,243,255,0.4)]">
+            <div className="glass-panel rounded-xl p-6 sm:p-8 max-w-md w-full space-y-5 border border-[#00f3ff]/60 shadow-[0_0_35px_rgba(0,243,255,0.4)] relative">
               <div className="flex items-center justify-between border-b border-white/15 pb-3">
                 <div className="flex items-center gap-2">
-                  <KeyRound className="w-4 h-4 text-[#00f3ff]" />
-                  <span className="text-xs font-mono-tabular tracking-wider text-[#00f3ff] uppercase font-bold">
-                    Terminal de Códigos · Desbloqueo Maestro
+                  <KeyRound className="w-5 h-5 text-[#00f3ff]" />
+                  <span className="text-sm font-display font-bold tracking-wider text-[#00f3ff] uppercase">
+                    PIXELVERSE CODE
                   </span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setCodeModalOpen(false)}
+                  onClick={() => {
+                    setCodeModalOpen(false);
+                    setSerialStatus('idle');
+                  }}
                   aria-label="Cerrar modal de código"
-                  className="text-slate-400 hover:text-white cursor-pointer"
+                  className="text-slate-400 hover:text-white cursor-pointer p-1"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Banner de Ceremonia "PROTOCOLO PIXEL ACTIVADO" */}
-              {pixelCeremonyActive && (
-                <div className="p-4 rounded-lg bg-emerald-950/90 border-2 border-emerald-400 pixel-ceremony-box space-y-2 text-center">
+              {/* Banner / Estado de activación "CODE UNLOCKED" */}
+              {masterUnlocked ? (
+                <div className="p-4 rounded-lg bg-emerald-950/90 border-2 border-emerald-400 space-y-2 text-center">
                   <div className="flex items-center justify-center gap-2 text-amber-300 font-mono-tabular font-bold text-xs tracking-wider uppercase">
                     <Sparkles className="w-4 h-4 text-amber-300 animate-spin" />
-                    <span>PROTOCOLO PIXEL ACTIVADO</span>
+                    <span>CODE UNLOCKED ACTIVADO</span>
                     <Sparkles className="w-4 h-4 text-amber-300 animate-spin" />
                   </div>
                   <p className="text-xs font-mono-tabular text-[#00f3ff] font-bold tracking-widest uppercase">
-                    MEMORIA DEL UNIVERSO RESTAURADA
+                    MODO NAVEGACIÓN LIBRE HABILITADO
                   </p>
                   <p className="text-[11px] font-mono-tabular text-slate-300">
-                    Todos los niveles y reinos retro del multiverso han sido desbloqueados.
+                    Todos los mundos, islas y niveles están accesibles sin reiniciar tu partida.
                   </p>
                 </div>
-              )}
+              ) : null}
 
               <form onSubmit={handleValidateSerial} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-mono-tabular text-slate-300">
-                    Ingresa el Código de Desbloqueo Maestro (Ej. PIXEL):
+                <div className="space-y-2">
+                  <label className="text-xs font-mono-tabular text-slate-200 block">
+                    Introduce el código secreto
                   </label>
                   <div className="relative">
                     <KeyRound className="w-4 h-4 text-[#00f3ff]/80 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1178,43 +1349,48 @@ export default function App() {
                         setSerialInput(e.target.value);
                         if (serialStatus === 'error') setSerialStatus('idle');
                       }}
-                      placeholder="Ej. PIXEL"
+                      placeholder="Escribe aquí (Ej. ZUKA)"
                       autoComplete="off"
+                      autoFocus
                       spellCheck={false}
                       className="w-full pl-9 pr-3 py-2.5 rounded-md bg-[#040715]/90 border border-[#00f3ff]/40 text-sm font-mono-tabular text-white uppercase tracking-wider placeholder:text-slate-500 placeholder:normal-case focus:outline-none focus:border-[#00f3ff] focus:shadow-[0_0_15px_rgba(0,243,255,0.3)]"
                     />
                   </div>
+
+                  {/* Mensaje de error si el código es incorrecto */}
+                  {serialStatus === 'error' && (
+                    <p className="text-xs font-mono-tabular text-red-400 font-bold uppercase tracking-wide flex items-center gap-1.5 pt-1">
+                      <span>⚠</span> CÓDIGO INCORRECTO
+                    </p>
+                  )}
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2">
+                <div className="flex items-center justify-end gap-2.5 pt-2">
                   <button
                     type="button"
-                    onClick={() => setCodeModalOpen(false)}
+                    onClick={() => {
+                      setCodeModalOpen(false);
+                      setSerialStatus('idle');
+                    }}
                     className="px-4 py-2 rounded border border-white/20 bg-black/40 text-xs font-mono-tabular text-slate-300 hover:text-white cursor-pointer"
                   >
                     Cerrar
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded border border-[#00f3ff]/70 bg-cyan-950/80 hover:bg-cyan-900 text-xs font-mono-tabular font-bold tracking-wider text-[#00f3ff] hover:text-white cursor-pointer transition-colors"
+                    className="px-5 py-2 rounded border border-[#00f3ff]/70 bg-cyan-950/90 hover:bg-cyan-900 text-xs font-mono-tabular font-bold tracking-wider text-[#00f3ff] hover:text-white cursor-pointer transition-colors shadow-[0_0_12px_rgba(0,243,255,0.2)]"
                   >
-                    Validar Código
+                    DESBLOQUEAR
                   </button>
                 </div>
               </form>
 
-              {serialStatus === 'error' && (
-                <p className="text-xs font-mono-tabular text-rose-400 text-center">
-                  Código incorrecto · Acceso no reconocido.
-                </p>
-              )}
-
-
+              {/* Acceso rápido a niveles cuando está desbloqueado */}
               {masterUnlocked && (
                 <div className="space-y-3 pt-3 border-t border-white/15">
-                  <div className="flex items-center justify-center gap-2 text-xs font-mono-tabular text-emerald-300 font-bold">
+                  <div className="flex items-center justify-center gap-2 text-xs font-mono-tabular text-emerald-300 font-bold uppercase">
                     <Unlock className="w-4 h-4 text-emerald-400" />
-                    <span>¡ACCESO CONCEDIDO! NIVELES DESBLOQUEADOS:</span>
+                    <span>NIVELES Y MUNDOS DESBLOQUEADOS:</span>
                   </div>
                   <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
                     {UNLOCKABLE_LEVELS.map((lvl) => (
@@ -1242,134 +1418,30 @@ export default function App() {
         )}
       </section>
 
-      {/* =========================================================
-          ESTADO 3: CREADOR DE AVATAR (GLASSMORPHISM + DROP-SHADOW REACTIVO)
-         ========================================================= */}
-      <section id="state-avatar" className="view-state z-10 px-6 py-8 overflow-y-auto">
-        <div className="w-full max-w-4xl flex flex-col items-center space-y-6">
-          <div className="text-center space-y-1">
-            <h2 className="title-neon font-display text-2xl sm:text-4xl tracking-[0.12em]">
-              Crea a tu Arquitecto
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-300 font-ui">
-              El aura y la sombra paralela de Pixel reaccionan dinámicamente al color de tu ropa.
-            </p>
-          </div>
-
-          <div className="w-full grid grid-cols-1 md:grid-cols-12 glass-panel rounded-2xl overflow-hidden">
-            <div className="md:col-span-5 flex flex-col items-center justify-center py-10 px-6 border-b md:border-b-0 md:border-r border-[#00f3ff]/35 bg-[#040715]/55">
-              <CssPixelCharacter />
-            </div>
-
-            <div className="md:col-span-7 p-6 sm:p-8 flex flex-col justify-between space-y-6">
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-[#00f3ff]">Tono de Piel</span>
-                    <span className="text-slate-300">
-                      {SKIN_SWATCHES.find((s) => s.hex === skinColor)?.label}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-3" id="s-skin">
-                    {SKIN_SWATCHES.map((sw) => {
-                      const isSel = skinColor === sw.hex;
-                      return (
-                        <button
-                          key={sw.hex}
-                          type="button"
-                          onClick={() => {
-                            retroAudio.uiClick();
-                            setSkinColor(sw.hex);
-                          }}
-                          className={`px-3 py-2 rounded border text-xs flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap shrink-0 ${
-                            isSel
-                              ? 'border-[#00f3ff] bg-cyan-950/55 text-white shadow-[0_0_14px_rgba(0,243,255,0.35)] scale-105'
-                              : 'border-white/15 bg-black/45 text-slate-300 hover:border-white/40'
-                          }`}
-                        >
-                          <span className={`w-5 h-5 rounded-sm border border-white/30 ${sw.bgClass}`} />
-                          <span>{sw.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-[#00f3ff]">Cabello</span>
-                    <span className="text-slate-300">
-                      {HAIR_SWATCHES.find((s) => s.hex === hairColor)?.label}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-3" id="s-hair">
-                    {HAIR_SWATCHES.map((sw) => {
-                      const isSel = hairColor === sw.hex;
-                      return (
-                        <button
-                          key={sw.hex}
-                          type="button"
-                          onClick={() => {
-                            retroAudio.uiClick();
-                            setHairColor(sw.hex);
-                          }}
-                          className={`px-3 py-2 rounded border text-xs flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap shrink-0 ${
-                            isSel
-                              ? 'border-[#00f3ff] bg-cyan-950/55 text-white shadow-[0_0_14px_rgba(0,243,255,0.35)] scale-105'
-                              : 'border-white/15 bg-black/45 text-slate-300 hover:border-white/40'
-                          }`}
-                        >
-                          <span className={`w-5 h-5 rounded-sm border border-white/30 ${sw.bgClass}`} />
-                          <span>{sw.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-[#00f3ff]">Ropa (Aura Dinámica)</span>
-                    <span className="text-slate-300">
-                      {SHIRT_SWATCHES.find((s) => s.hex === shirtColor)?.label}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-3" id="s-shirt">
-                    {SHIRT_SWATCHES.map((sw) => {
-                      const isSel = shirtColor === sw.hex;
-                      return (
-                        <button
-                          key={sw.hex}
-                          type="button"
-                          onClick={() => {
-                            retroAudio.uiClick();
-                            setShirtColor(sw.hex);
-                          }}
-                          className={`px-3 py-2 rounded border text-xs flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap shrink-0 ${
-                            isSel
-                              ? 'border-[#00f3ff] bg-cyan-950/55 text-white shadow-[0_0_14px_rgba(0,243,255,0.35)] scale-105'
-                              : 'border-white/15 bg-black/45 text-slate-300 hover:border-white/40'
-                          }`}
-                        >
-                          <span className={`w-5 h-5 rounded-sm border border-white/30 ${sw.bgClass}`} />
-                          <span>{sw.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+      {/* RPG character creation */}
+      <section id="state-avatar" className="view-state isolate z-10 overflow-y-auto bg-[#071018] px-3 py-4 sm:px-6 sm:py-6">
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-[radial-gradient(ellipse_at_50%_70%,rgba(12,78,91,.52),transparent_48%),linear-gradient(180deg,#101b2b_0%,#152d3c_48%,#071018_100%)]"><div className="absolute inset-x-0 bottom-0 h-[34%] border-t border-cyan-100/10 bg-[linear-gradient(180deg,rgba(11,31,40,.3),rgba(3,11,17,.96))]"/><div className="absolute bottom-[27%] left-[8%] h-20 w-20 border border-cyan-100/10 bg-cyan-100/[0.025] [clip-path:polygon(50%_0,100%_100%,0_100%)] sm:h-32 sm:w-32"/><div className="absolute bottom-[31%] right-[9%] h-28 w-28 border border-amber-100/10 bg-amber-100/[0.025] [clip-path:polygon(50%_0,100%_100%,0_100%)] sm:h-44 sm:w-44"/><div className="absolute inset-0 opacity-[0.1] [background-image:linear-gradient(rgba(163,230,240,.14)_1px,transparent_1px),linear-gradient(90deg,rgba(163,230,240,.14)_1px,transparent_1px)] [background-size:32px_32px]"/></div>
+        <div className="relative z-10 mx-auto flex min-h-full w-full max-w-7xl flex-col">
+          <header className="mb-3 flex items-end justify-between border-b border-cyan-100/20 pb-3 sm:mb-5"><div><p className="font-mono text-[9px] tracking-[0.35em] text-amber-200/75">PIXELVERSE &middot; CR&Oacute;NICAS DEL ORIGEN</p><h2 className="mt-1 font-display text-xl tracking-[0.13em] text-white sm:text-3xl">ELIGE A TU ARQUITECTO</h2></div><span className="hidden border border-cyan-100/20 px-3 py-1 font-mono text-[9px] tracking-widest text-cyan-100/70 sm:block">CAP&Iacute;TULO 01 &middot; IDENTIDAD</span></header>
+          <div className="grid flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(280px,0.72fr)_minmax(520px,1.28fr)] lg:gap-5">
+            <section className="relative flex min-h-[330px] flex-col items-center justify-center overflow-hidden border-2 border-[#172c37] bg-[linear-gradient(145deg,rgba(19,44,57,.94),rgba(5,15,23,.98))] px-3 py-4 shadow-[inset_0_0_0_1px_rgba(125,211,224,.12),0_14px_40px_rgba(0,0,0,.35)] sm:min-h-[500px] lg:min-h-[590px]"><div className="pointer-events-none absolute inset-2 border border-cyan-100/10"/><div className="absolute left-5 top-5 font-mono text-[9px] tracking-[0.18em] text-cyan-100/50">VISTA DEL PERSONAJE</div><div className="absolute right-5 top-5 h-2 w-2 animate-pulse bg-emerald-300 shadow-[0_0_10px_#6ee7b7]"/><div className="absolute bottom-[19%] h-5 w-44 rounded-[50%] bg-cyan-300/10 blur-md"/><div className="absolute bottom-4 left-5 font-mono text-[8px] text-slate-500">REPOSO &middot; USA LAS FLECHAS</div><div className="absolute bottom-4 right-5 font-mono text-[8px] text-slate-500">SPRITE PIXEL GBA</div><div className="z-10 mb-2 border-b border-cyan-100/20 px-5 pb-2 font-mono text-xs tracking-[0.3em] text-amber-200">{playerName || 'PIXEL'}</div><PixelCharacterPreview skinColor={skinColor} hairColor={hairColor} shirtColor={shirtColor} appearance={avatarAppearance}/></section>
+            <section className="flex min-h-[400px] flex-col border-2 border-[#172c37] bg-[#07121c]/95 p-3 shadow-[inset_0_0_0_1px_rgba(125,211,224,.1),0_14px_40px_rgba(0,0,0,.3)] sm:p-4">
+              <div className="mb-3 flex flex-wrap items-end justify-between gap-2"><label className="flex flex-col gap-1 font-mono text-[9px] tracking-[0.18em] text-cyan-100">NOMBRE DEL VIAJERO<input value={playerName} maxLength={16} onChange={event=>setPlayerName(event.target.value)} className="w-48 border border-cyan-100/20 bg-black/40 px-2 py-1.5 text-xs tracking-normal text-white outline-none focus:border-amber-200" aria-label="Nombre del personaje"/></label><span className="font-mono text-[9px] text-slate-500">GUARDADO EN TU PARTIDA</span></div>
+              <nav className="mb-3 grid grid-cols-4 gap-1 border-b border-cyan-100/15 pb-3 xl:grid-cols-7" aria-label="Character categories">{([['skin','PIEL'],['hair','PELO'],['clothes','ROPA'],['boots','BOTAS'],['outfits','CONJUNTOS'],['accessories','ACCESORIOS'],['rare','RAROS']] as const).map(([id,label])=><button key={id} type="button" onClick={()=>setAvatarTab(id)} aria-pressed={avatarTab===id} className={'border px-2 py-2 font-mono text-[9px] tracking-wider transition-colors '+(avatarTab===id?'border-amber-200 bg-amber-200/10 text-amber-100':'border-white/10 text-slate-400 hover:border-cyan-100/50 hover:text-white')}>{label}</button>)}</nav>
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                {avatarTab==='skin'&&(transformationId?<div className="border border-amber-100/20 p-4 font-mono text-xs text-slate-300">Esta forma tiene una paleta de piel propia. Quita la transformacion para personalizarla.<button type="button" onClick={()=>setTransformationId(null)} className="mt-3 block border border-amber-200/50 px-3 py-2 text-amber-100">QUITAR TRANSFORMACI&Oacute;N</button></div>:<AvatarPaletteRow title="Tono de piel" value={skinColor} options={SKIN_SWATCHES} onSelect={setSkinColor}/>)}
+                {avatarTab==='hair'&&(transformationId?<div className="border border-amber-100/20 p-4 font-mono text-xs text-slate-300">Esta forma cambia el cabello y la silueta de la cabeza. Quita la transformacion para personalizar el pelo.<button type="button" onClick={()=>setTransformationId(null)} className="mt-3 block border border-amber-200/50 px-3 py-2 text-amber-100">QUITAR TRANSFORMACI&Oacute;N</button></div>:<AvatarPaletteRow title="Color de pelo" value={hairColor} options={HAIR_SWATCHES} onSelect={setHairColor}/>)}
+                {avatarTab==='clothes'&&(transformationId?<div className="border border-amber-100/20 p-4 font-mono text-xs text-slate-300">La criatura sustituye la ropa. Quita la transformacion para cambiar su color.<button type="button" onClick={()=>setTransformationId(null)} className="mt-3 block border border-amber-200/50 px-3 py-2 text-amber-100">QUITAR TRANSFORMACI&Oacute;N</button></div>:<AvatarPaletteRow title="Color de ropa" value={shirtColor} options={SHIRT_SWATCHES} onSelect={setShirtColor}/>)}
+                {avatarTab==='boots'&&(transformationId?<div className="border border-amber-100/20 p-4 font-mono text-xs text-slate-300">Esta forma tiene sus propios pies. Quita la transformacion para personalizar las botas.<button type="button" onClick={()=>setTransformationId(null)} className="mt-3 block border border-amber-200/50 px-3 py-2 text-amber-100">QUITAR TRANSFORMACI&Oacute;N</button></div>:<AvatarPaletteRow title="Color de botas" value={bootColor} options={BOOT_SWATCHES} onSelect={setBootColor}/>)}
+                {avatarTab==='outfits'&&(transformationId?<div className="space-y-3 border border-amber-200/25 bg-amber-100/5 p-4 font-mono text-xs text-slate-300">La apariencia rara sustituye la ropa. Quita la transformacion para elegir otro conjunto.<button type="button" onClick={()=>setTransformationId(null)} className="block border border-amber-200/50 px-3 py-2 text-amber-100">QUITAR TRANSFORMACI&Oacute;N</button></div>:<AvatarChoiceGrid title="20 CONJUNTOS ORIGINALES" options={OUTFITS} selected={outfitId} category="outfit" onSelect={chooseAvatarOutfit} skinColor={skinColor} hairColor={hairColor} shirtColor={shirtColor} appearance={avatarAppearance}/>)}
+                {avatarTab==='accessories'&&<div className="space-y-3"><p className="font-mono text-[9px] text-slate-500">Selecciona cada accesorio para ponerlo o quitarlo. Las piezas compatibles se pueden combinar.</p><AvatarChoiceGrid title="10 ACCESORIOS INDEPENDIENTES" options={ACCESSORIES.filter(item=>!(transformationId&&['cap','hat','bandana','headphones','mask'].includes(item.id))&&!('mage pirate cowboy detective'.split(' ').includes(outfitId)&&['cap','hat','bandana','headphones'].includes(item.id)))} selected={null} category="accessory" onSelect={toggleAvatarAccessory} skinColor={skinColor} hairColor={hairColor} shirtColor={shirtColor} appearance={avatarAppearance}/></div>}
+                {avatarTab==='rare'&&<div className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-mono text-[9px] text-slate-500">LAS TRANSFORMACIONES CAMBIAN LA SILUETA Y LA ROPA.</p>{transformationId&&<button type="button" onClick={()=>setTransformationId(null)} className="border border-cyan-100/30 px-2 py-1 font-mono text-[9px] text-cyan-100">QUITAR TRANSFORMACI&Oacute;N</button>}</div><AvatarChoiceGrid title="10 APARIENCIAS EXTRAORDINARIAS" options={TRANSFORMATIONS} selected={transformationId} category="transformation" onSelect={chooseTransformation} skinColor={skinColor} hairColor={hairColor} shirtColor={shirtColor} appearance={avatarAppearance}/></div>}
               </div>
-
-              <button
-                id="btn-confirm"
-                type="button"
-                onClick={handleConfirmAvatar}
-                className="btn-ui rounded-md w-full py-3.5 px-6 text-sm font-bold tracking-[0.16em] whitespace-nowrap shrink-0"
-              >
-                Confirmar Identidad
-              </button>
-            </div>
+              <div className="mt-3 border border-cyan-100/15 bg-[#030a10] p-3"><div className="mb-1 font-mono text-[9px] tracking-[0.2em] text-cyan-100">IDENTIDAD ACTUAL</div><p className="font-mono text-[10px] text-slate-300">{transformationId?TRANSFORMATIONS.find(item=>item.id===transformationId)?.description:OUTFITS.find(item=>item.id===outfitId)?.description} {accessories.length>0&&' '+accessories.length+' accesorios seleccionados.'}</p></div>
+              <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={()=>{retroAudio.uiClick();managerRef.current?.transitionTo('state-title');}} className="border border-white/20 px-3 py-3 font-mono text-[10px] text-slate-300 hover:border-white/50">VOLVER</button><button type="button" onClick={handleRandomizeAvatar} className="border border-cyan-100/40 px-3 py-3 font-mono text-[10px] text-cyan-100 hover:bg-cyan-100/10">ALEATORIO</button><button id="btn-confirm" type="button" onClick={handleConfirmAvatar} className="group flex min-w-52 flex-1 items-center justify-between border-2 border-amber-200/70 bg-amber-200 px-4 py-3 font-mono text-xs font-bold tracking-[0.12em] text-[#17202a] shadow-[4px_4px_0_#6d5420] transition-transform hover:-translate-y-0.5 hover:bg-amber-100 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-200"><span>CONFIRMAR IDENTIDAD</span><span className="transition-transform group-hover:translate-x-1">-&gt;</span></button></div>
+            </section>
           </div>
+          <footer className="mt-3 flex items-center justify-between border-t border-cyan-100/15 pt-2 font-mono text-[8px] tracking-[0.12em] text-slate-500"><span>TU APARIENCIA TE ACOMPA&Ntilde;A EN LA AVENTURA</span><span>PIXELVERSE</span></footer>
         </div>
       </section>
 
@@ -1410,11 +1482,16 @@ export default function App() {
             skinColor={skinColor}
             hairColor={hairColor}
             shirtColor={shirtColor}
+            appearance={avatarAppearance}
             allUnlocked={masterUnlocked}
             arrivalMode={islandArrivalMode}
             progressState={progressState}
             onEnterPong={() => handleEnterPongCabinet(false)}
             onEnterBreakout={() => {
+              managerRef.current?.transitionTo('state-breakout');
+            }}
+            onEnterBreakoutFromNorth={() => {
+              breakoutReturnToNorthRef.current = true;
               managerRef.current?.transitionTo('state-breakout');
             }}
             onEnterGlitchTrail={() => {
@@ -1425,6 +1502,18 @@ export default function App() {
             }}
             onEnterDonkeyKong={() => {
               managerRef.current?.transitionTo('state-dk-classic');
+            }}
+            onEnterAsteroids={() => {
+              managerRef.current?.transitionTo('state-asteroids');
+            }}
+            onEnterSeaWolf={() => {
+              managerRef.current?.transitionTo('state-seawolf');
+            }}
+            onEnterTank={() => {
+              managerRef.current?.transitionTo('state-tank');
+            }}
+            onEnterLunarLander={() => {
+              managerRef.current?.transitionTo('state-lunar-lander');
             }}
             onCollectDiamond={(diamondId) => {
               setProgressState((prev) => collectUniqueMemoryDiamond(prev, diamondId));
@@ -1541,8 +1630,110 @@ export default function App() {
               setProgressState((prev) => markCeremonyCompleted(prev, 'breakout'));
             }}
             onExitToSecretRoom={() => {
-              setIslandArrivalMode('return-breakout');
               setProgressState((prev) => markTransitionFinished(prev, 'breakout', true));
+              if (breakoutReturnToNorthRef.current) {
+                breakoutReturnToNorthRef.current = false;
+                setIslandArrivalMode('standard');
+                managerRef.current?.transitionTo('state-archipelago');
+                return;
+              }
+              setIslandArrivalMode('return-breakout');
+              managerRef.current?.transitionTo('state-archipelago');
+            }}
+          />
+        )}
+      </section>
+
+      {/* =========================================================
+          ESTADO ASTEROIDS (1979) — INERCIA VECTORIAL QUADRASCAN
+         ========================================================= */}
+      <section id="state-asteroids" className="view-state z-10 px-4 py-4 arcade-hall-backdrop">
+        {windowReady && activeState === 'state-asteroids' && (
+          <Asteroids1979Stage
+            active={activeState === 'state-asteroids'}
+            alreadyRestored={Boolean(progressState.games['asteroids']?.memoryUnlocked)}
+            bestSavedScore={progressState.games['asteroids']?.bestScore ?? 0}
+            onVictoryRecorded={(finalScore: number) => {
+              setProgressState((prev) => recordGameVictory(prev, 'asteroids', finalScore, 2));
+              window.dispatchEvent(new CustomEvent('pixelverse-shake'));
+            }}
+            onCeremonyDone={() => {
+              setProgressState((prev) => markCeremonyCompleted(prev, 'asteroids'));
+            }}
+            onExitToIsland={() => {
+              setIslandArrivalMode('standard');
+              managerRef.current?.transitionTo('state-archipelago');
+            }}
+          />
+        )}
+      </section>
+
+      {/* =========================================================
+          ESTADO SEA WOLF (1976) — SIMULACIÓN NAVAL PERISCOPIO
+         ========================================================= */}
+      <section id="state-seawolf" className="view-state z-10 px-4 py-4 arcade-hall-backdrop">
+        {windowReady && activeState === 'state-seawolf' && (
+          <SeaWolf1976Stage
+            active={activeState === 'state-seawolf'}
+            alreadyRestored={Boolean(progressState.games['sea-wolf']?.memoryUnlocked)}
+            bestSavedScore={progressState.games['sea-wolf']?.bestScore ?? 0}
+            onVictoryRecorded={(finalScore: number) => {
+              setProgressState((prev) => recordGameVictory(prev, 'sea-wolf', finalScore, 2));
+              window.dispatchEvent(new CustomEvent('pixelverse-shake'));
+            }}
+            onCeremonyDone={() => {
+              setProgressState((prev) => markCeremonyCompleted(prev, 'sea-wolf'));
+            }}
+            onExitToIsland={() => {
+              setIslandArrivalMode('standard');
+              managerRef.current?.transitionTo('state-archipelago');
+            }}
+          />
+        )}
+      </section>
+
+      {/* =========================================================
+          ESTADO TANK (1974) — COMBATE TÁCTICO DE LABERINTO
+         ========================================================= */}
+      <section id="state-tank" className="view-state z-10 px-4 py-4 arcade-hall-backdrop">
+        {windowReady && activeState === 'state-tank' && (
+          <Tank1974Stage
+            active={activeState === 'state-tank'}
+            alreadyRestored={Boolean(progressState.games['tank']?.memoryUnlocked)}
+            bestSavedScore={progressState.games['tank']?.bestScore ?? 0}
+            onVictoryRecorded={(finalScore: number) => {
+              setProgressState((prev) => recordGameVictory(prev, 'tank', finalScore, 2));
+              window.dispatchEvent(new CustomEvent('pixelverse-shake'));
+            }}
+            onCeremonyDone={() => {
+              setProgressState((prev) => markCeremonyCompleted(prev, 'tank'));
+            }}
+            onExitToIsland={() => {
+              setIslandArrivalMode('standard');
+              managerRef.current?.transitionTo('state-archipelago');
+            }}
+          />
+        )}
+      </section>
+
+      {/* =========================================================
+          ESTADO LUNAR LANDER (1979) — ALUNIZAJE VECTORIAL DE PRECISIÓN
+         ========================================================= */}
+      <section id="state-lunar-lander" className="view-state z-10 px-4 py-4 arcade-hall-backdrop">
+        {windowReady && activeState === 'state-lunar-lander' && (
+          <LunarLander1979Stage
+            active={activeState === 'state-lunar-lander'}
+            alreadyRestored={Boolean(progressState.games['lunar-lander']?.memoryUnlocked)}
+            bestSavedScore={progressState.games['lunar-lander']?.bestScore ?? 0}
+            onVictoryRecorded={(finalScore: number) => {
+              setProgressState((prev) => recordGameVictory(prev, 'lunar-lander', finalScore, 2));
+              window.dispatchEvent(new CustomEvent('pixelverse-shake'));
+            }}
+            onCeremonyDone={() => {
+              setProgressState((prev) => markCeremonyCompleted(prev, 'lunar-lander'));
+            }}
+            onExitToIsland={() => {
+              setIslandArrivalMode('standard');
               managerRef.current?.transitionTo('state-archipelago');
             }}
           />
@@ -1558,6 +1749,7 @@ export default function App() {
             skinColor={skinColor}
             hairColor={hairColor}
             shirtColor={shirtColor}
+            appearance={avatarAppearance}
             collectedDiamondIds={progressState.island70s.collectedDiamondIds}
             discoveredEchoIds={progressState.island70s.discoveredEchoIds}
             alreadyRestoredBefore={Boolean(

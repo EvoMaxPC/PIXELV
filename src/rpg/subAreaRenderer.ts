@@ -16,6 +16,7 @@ import {
 } from '../island/island70sRenderer';
 import { MUSEUM_1970S_EXHIBITS } from '../memories/historicalCatalog';
 import { PixelverseProgressState } from '../memories/progressionState';
+import type { AvatarAppearance } from '../avatar/avatarOptions';
 import {
   evaluateTimeMachineStatus,
   FacingDirection,
@@ -27,6 +28,18 @@ import {
   RPG_SUBAREA_NPCS,
   SubAreaSpec,
 } from './rpgContent';
+
+export interface CastleBossCombatState {
+  phase: number;
+  bossHp: number;
+  maxHp: number;
+  dkPos: { x: number; y: number };
+  barrels: { x: number; y: number; vx: number; angle: number }[];
+  shockwaves: { x: number; y: number; r: number; maxR: number; alpha: number }[];
+  conduitOverloads: [boolean, boolean];
+  dkPurified: boolean;
+  attackTimer?: number;
+}
 
 export interface SubAreaRenderParams {
   ctx: CanvasRenderingContext2D;
@@ -46,6 +59,7 @@ export interface SubAreaRenderParams {
   skinColor: string;
   hairColor: string;
   shirtColor: string;
+  appearance: AvatarAppearance;
   progressState: PixelverseProgressState;
   allUnlocked: boolean;
   steppedTileOrder: number[];
@@ -53,6 +67,7 @@ export interface SubAreaRenderParams {
   pickupBursts: IslandPickupBurst[];
   prompt: IslandPromptRenderSpec | null;
   scannerPulse: { active: boolean; elapsed: number };
+  bossCombatState?: CastleBossCombatState;
 }
 
 export function renderSubAreaFrame(params: SubAreaRenderParams): void {
@@ -67,6 +82,7 @@ export function renderSubAreaFrame(params: SubAreaRenderParams): void {
     skinColor,
     hairColor,
     shirtColor,
+    appearance,
     progressState,
     allUnlocked,
     steppedTileOrder,
@@ -253,18 +269,28 @@ export function renderSubAreaFrame(params: SubAreaRenderParams): void {
   for (const prop of area.decorProps) {
     ctx.save();
     if (prop.kind === 'workbench' || prop.kind === 'archive-shelf') {
-      ctx.fillStyle = '#334155';
-      ctx.fillRect(prop.x, prop.y, prop.w, prop.h);
-      ctx.strokeStyle = prop.accentHex;
+      const isSecretShelf = prop.label === 'Estantería Mecánica';
+      const shelfSolved =
+        isSecretShelf &&
+        (allUnlocked || progressState.rpg.solvedPuzzleIds.includes('puzzle-cronica-reyes'));
+      const drawX = shelfSolved ? prop.x + 64 : prop.x;
+
+      ctx.fillStyle = shelfSolved ? '#1e293b' : '#334155';
+      ctx.fillRect(drawX, prop.y, prop.w, prop.h);
+      ctx.strokeStyle = shelfSolved ? '#f59e0b' : prop.accentHex;
       ctx.lineWidth = 2;
-      ctx.strokeRect(prop.x, prop.y, prop.w, prop.h);
-      ctx.fillStyle = prop.accentHex;
-      ctx.fillRect(prop.x + 8, prop.y + 8, prop.w - 16, 6);
+      ctx.strokeRect(drawX, prop.y, prop.w, prop.h);
+      ctx.fillStyle = shelfSolved ? '#fbbf24' : prop.accentHex;
+      ctx.fillRect(drawX + 8, prop.y + 8, prop.w - 16, 6);
       if (prop.label) {
         ctx.fillStyle = '#f8fafc';
         ctx.font = '700 8px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(prop.label, prop.x + prop.w / 2, prop.y + prop.h - 10);
+        ctx.fillText(
+          shelfSolved ? '¡Pasadizo Abierto!' : prop.label,
+          drawX + prop.w / 2,
+          prop.y + prop.h - 10
+        );
       }
     } else if (prop.kind === 'crt-rack' || prop.kind === 'oscilloscope-altar') {
       ctx.fillStyle = '#1e293b';
@@ -287,14 +313,24 @@ export function renderSubAreaFrame(params: SubAreaRenderParams): void {
       );
       ctx.stroke();
     } else if (prop.kind === 'underground-pool') {
-      ctx.fillStyle = '#083344';
+      const hydraulicSolved =
+        area.id === 'castle-cimientos' &&
+        (allUnlocked || progressState.rpg.solvedPuzzleIds.includes('puzzle-valvulas-hidraulicas'));
+      ctx.fillStyle = hydraulicSolved ? '#0f172a' : '#083344';
       ctx.fillRect(prop.x, prop.y, prop.w, prop.h);
-      ctx.strokeStyle = '#22d3ee';
+      ctx.strokeStyle = hydraulicSolved ? '#06b6d4' : '#22d3ee';
       ctx.lineWidth = 2;
       ctx.strokeRect(prop.x, prop.y, prop.w, prop.h);
-      ctx.fillStyle = 'rgba(103, 232, 249, 0.45)';
-      const rip = reducedMotion ? 8 : 8 + Math.sin(elapsed * 3) * 6;
-      ctx.fillRect(prop.x + 18, prop.y + rip, prop.w - 36, 4);
+      if (hydraulicSolved) {
+        ctx.fillStyle = '#22d3ee';
+        ctx.font = '700 8px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('FOSA DRENADA · MONTACARGAS ACTIVO', prop.x + prop.w / 2, prop.y + prop.h / 2 + 3);
+      } else {
+        ctx.fillStyle = 'rgba(103, 232, 249, 0.45)';
+        const rip = reducedMotion ? 8 : 8 + Math.sin(elapsed * 3) * 6;
+        ctx.fillRect(prop.x + 18, prop.y + rip, prop.w - 36, 4);
+      }
     } else if (prop.kind === 'cave-crystal') {
       ctx.translate(prop.x + prop.w / 2, prop.y + prop.h);
       ctx.fillStyle = prop.accentHex;
@@ -718,6 +754,323 @@ export function renderSubAreaFrame(params: SubAreaRenderParams): void {
         ctx.textAlign = 'center';
         ctx.fillText(prop.label, cx, prop.y - 6);
       }
+    } else if (prop.kind === 'castle-banner') {
+      const wave = reducedMotion ? 0 : Math.sin(elapsed * 3 + prop.x * 0.05) * 4;
+      ctx.fillStyle = '#07050d';
+      ctx.fillRect(prop.x - 2, prop.y, prop.w + 4, 6);
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(prop.x, prop.y + 1, prop.w, 4);
+
+      ctx.fillStyle = '#1e112a';
+      ctx.beginPath();
+      ctx.moveTo(prop.x + 2, prop.y + 5);
+      ctx.lineTo(prop.x + prop.w - 2, prop.y + 5);
+      ctx.lineTo(prop.x + prop.w - 4 + wave, prop.y + prop.h - 14);
+      ctx.lineTo(prop.x + prop.w / 2 + wave * 0.5, prop.y + prop.h);
+      ctx.lineTo(prop.x + 4 + wave, prop.y + prop.h - 14);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = prop.accentHex;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = prop.accentHex;
+      ctx.fillRect(prop.x + prop.w / 2 - 4 + wave * 0.5, prop.y + 24, 8, 8);
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(prop.x + prop.w / 2 - 2 + wave * 0.5, prop.y + 26, 4, 4);
+
+      if (prop.label) {
+        ctx.fillStyle = '#c084fc';
+        ctx.font = '700 7px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(prop.label, prop.x + prop.w / 2, prop.y - 4);
+      }
+    } else if (prop.kind === 'castle-statue') {
+      const cx = prop.x + prop.w / 2;
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(prop.x - 2, prop.y + prop.h - 18, prop.w + 4, 18);
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(prop.x, prop.y + prop.h - 16, prop.w, 14);
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(prop.x, prop.y + prop.h - 16, prop.w, 14);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(cx - 14, prop.y + 8, 28, prop.h - 26);
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(cx - 12, prop.y + 10, 24, 18);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(cx - 10, prop.y + 16, 20, 6);
+
+      ctx.fillStyle = prop.accentHex;
+      ctx.fillRect(cx - 6, prop.y + 17, 3, 3);
+      ctx.fillRect(cx + 3, prop.y + 17, 3, 3);
+
+      if (prop.label) {
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '700 7px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(prop.label, cx, prop.y - 4);
+      }
+    } else if (prop.kind === 'castle-valve') {
+      const cx = prop.x + prop.w / 2;
+      const cy = prop.y + prop.h / 2;
+      ctx.fillStyle = '#451a03';
+      ctx.fillRect(prop.x - 8, cy + 6, prop.w + 16, 12);
+      ctx.fillStyle = '#92400e';
+      ctx.fillRect(prop.x - 8, cy + 8, prop.w + 16, 8);
+
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(cx, cy - 4, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = prop.accentHex;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(cx - 14, cy - 4);
+      ctx.lineTo(cx + 14, cy - 4);
+      ctx.moveTo(cx, cy - 18);
+      ctx.lineTo(cx, cy + 10);
+      ctx.stroke();
+
+      if (!reducedMotion) {
+        const steam = Math.sin(elapsed * 4 + prop.x * 0.1) * 3;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.beginPath();
+        ctx.arc(cx + steam, cy - 24, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (prop.label) {
+        ctx.fillStyle = prop.accentHex;
+        ctx.font = '700 8px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(prop.label, cx, prop.y - 8);
+      }
+    } else if (prop.kind === 'castle-lectern') {
+      const cx = prop.x + prop.w / 2;
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(cx - 8, prop.y + 18, 16, prop.h - 18);
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(cx - 6, prop.y + 18, 12, prop.h - 20);
+
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(cx - 18, prop.y + 6, 36, 14);
+      ctx.strokeStyle = '#b45309';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(cx - 18, prop.y + 6, 36, 14);
+
+      ctx.fillStyle = '#fef3c7';
+      ctx.fillRect(cx - 14, prop.y + 8, 13, 10);
+      ctx.fillRect(cx + 1, prop.y + 8, 13, 10);
+      ctx.fillStyle = prop.accentHex;
+      ctx.fillRect(cx - 10, prop.y + 11, 6, 2);
+      ctx.fillRect(cx + 4, prop.y + 11, 6, 2);
+
+      if (prop.label) {
+        ctx.fillStyle = prop.accentHex;
+        ctx.font = '700 8px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(prop.label, cx, prop.y - 4);
+      }
+    } else if (prop.kind === 'castle-gear') {
+      const cx = prop.x + prop.w / 2;
+      const cy = prop.y + prop.h / 2;
+      const rot = reducedMotion ? 0.3 : elapsed * 0.85;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rot);
+
+      const radius = 28;
+      const teeth = 8;
+      ctx.fillStyle = '#78350f';
+      ctx.strokeStyle = prop.accentHex;
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      for (let i = 0; i < teeth; i++) {
+        const a1 = (i / teeth) * Math.PI * 2;
+        const a2 = ((i + 0.5) / teeth) * Math.PI * 2;
+        const a3 = ((i + 0.8) / teeth) * Math.PI * 2;
+        ctx.lineTo(Math.cos(a1) * (radius + 6), Math.sin(a1) * (radius + 6));
+        ctx.lineTo(Math.cos(a2) * (radius + 6), Math.sin(a2) * (radius + 6));
+        ctx.lineTo(Math.cos(a3) * radius, Math.sin(a3) * radius);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(0, 0, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      if (prop.label) {
+        ctx.fillStyle = prop.accentHex;
+        ctx.font = '700 8px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(prop.label, cx, prop.y - 8);
+      }
+    } else if (prop.kind === 'castle-pendulum') {
+      const cx = prop.x + prop.w / 2;
+      const swing = reducedMotion ? 0 : Math.sin(elapsed * 2.2) * 0.32;
+      const len = prop.h - 16;
+
+      ctx.save();
+      ctx.translate(cx, prop.y + 4);
+      ctx.rotate(swing);
+
+      ctx.strokeStyle = '#ca8a04';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, len);
+      ctx.stroke();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(0, len, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = prop.accentHex;
+      ctx.beginPath();
+      ctx.arc(0, len, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      if (prop.label) {
+        ctx.fillStyle = prop.accentHex;
+        ctx.font = '700 8px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(prop.label, cx, prop.y - 6);
+      }
+    } else if (prop.kind === 'castle-throne') {
+      const cx = prop.x + prop.w / 2;
+      ctx.fillStyle = '#07050f';
+      ctx.beginPath();
+      ctx.moveTo(cx - 36, prop.y + prop.h);
+      ctx.lineTo(cx - 36, prop.y + 16);
+      ctx.lineTo(cx - 18, prop.y);
+      ctx.lineTo(cx, prop.y + 8);
+      ctx.lineTo(cx + 18, prop.y);
+      ctx.lineTo(cx + 36, prop.y + 16);
+      ctx.lineTo(cx + 36, prop.y + prop.h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = '#581c87';
+      ctx.fillRect(cx - 24, prop.y + 16, 48, prop.h - 28);
+      ctx.fillStyle = '#7e22ce';
+      ctx.fillRect(cx - 20, prop.y + 20, 40, prop.h - 36);
+
+      ctx.fillStyle = '#1e1b4b';
+      ctx.fillRect(cx - 32, prop.y + prop.h - 28, 64, 18);
+      ctx.fillStyle = '#eab308';
+      ctx.fillRect(cx - 34, prop.y + prop.h - 34, 10, 24);
+      ctx.fillRect(cx + 24, prop.y + prop.h - 34, 10, 24);
+
+      if (prop.label) {
+        ctx.fillStyle = '#f472b6';
+        ctx.font = '700 8px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(prop.label, cx, prop.y - 6);
+      }
+    } else if (prop.kind === 'corruption-core') {
+      const cx = prop.x + prop.w / 2;
+      const floatY = prop.y + prop.h / 2 + (reducedMotion ? 0 : Math.sin(elapsed * 3.5) * 6);
+      const pulse = reducedMotion ? 1 : 0.85 + Math.sin(elapsed * 6) * 0.25;
+
+      ctx.save();
+      const grad = ctx.createRadialGradient(cx, floatY, 4, cx, floatY, 32 * pulse);
+      grad.addColorStop(0, 'rgba(236, 72, 153, 0.8)');
+      grad.addColorStop(0.5, 'rgba(168, 85, 247, 0.4)');
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, floatY, 32 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#180728';
+      ctx.beginPath();
+      ctx.arc(cx, floatY, 14 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(cx - 5, floatY - 3, 10, 6);
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(cx - 1, floatY - 2, 2, 4);
+
+      for (let p = 0; p < 4; p++) {
+        const ang = elapsed * 2.5 + (p * Math.PI) / 2;
+        const px = cx + Math.cos(ang) * 22;
+        const py = floatY + Math.sin(ang) * 16;
+        ctx.fillStyle = '#ec4899';
+        ctx.fillRect(px - 2, py - 2, 4, 4);
+      }
+      ctx.restore();
+
+      if (prop.label) {
+        ctx.fillStyle = '#f43f5e';
+        ctx.font = '700 8px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(prop.label, cx, prop.y - 8);
+      }
+    } else if (prop.kind === 'space-invaders-ship') {
+      const cx = prop.x + prop.w / 2;
+      const cy = prop.y + prop.h / 2;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.fillRect(cx - 36, cy + 18, 72, 10);
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(cx - 34, cy - 10, 68, 24);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(cx - 32, cy - 8, 64, 20);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(cx - 24, cy - 24, 6, 16);
+      ctx.fillRect(cx + 18, cy - 24, 6, 16);
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(cx - 23, cy - 26, 4, 4);
+      ctx.fillRect(cx + 19, cy - 26, 4, 4);
+
+      ctx.fillStyle = '#14532d';
+      ctx.fillRect(cx - 14, cy - 14, 28, 14);
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(cx - 10, cy - 12, 20, 10);
+      ctx.fillStyle = '#86efac';
+      ctx.fillRect(cx - 6, cy - 10, 6, 4);
+
+      const flame = reducedMotion ? 6 : 4 + Math.sin(elapsed * 8) * 4;
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(cx - 26, cy + 12, 12, 4);
+      ctx.fillRect(cx + 14, cy + 12, 12, 4);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(cx - 24, cy + 16, 8, flame);
+      ctx.fillRect(cx + 16, cy + 16, 8, flame);
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(cx - 22, cy + 16, 4, flame * 0.6);
+      ctx.fillRect(cx + 18, cy + 16, 4, flame * 0.6);
+
+      ctx.restore();
+
+      if (prop.label) {
+        ctx.fillStyle = '#22c55e';
+        ctx.font = '700 8px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(prop.label, cx, prop.y - 12);
+      }
     }
     ctx.restore();
   }
@@ -750,9 +1103,145 @@ export function renderSubAreaFrame(params: SubAreaRenderParams): void {
     }
   }
 
+  // Combate contra Donkey Kong Corrupto en la Sala del Trono (Fases 1, 2 y 3)
+  const boss = params.bossCombatState;
+  if (area.id === 'castle-trono' && boss && !boss.dkPurified) {
+    // 1. Ondas de choque en el suelo
+    for (const sw of boss.shockwaves) {
+      ctx.save();
+      ctx.strokeStyle = `rgba(236, 72, 153, ${sw.alpha})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(sw.x, sw.y, sw.r, sw.r * 0.55, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 2. Barriles rodantes
+    for (const b of boss.barrels) {
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(b.angle);
+      ctx.fillStyle = '#451a03';
+      ctx.fillRect(-14, -10, 28, 20);
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(-12, -8, 24, 16);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(-14, -6, 28, 2);
+      ctx.fillRect(-14, 4, 28, 2);
+      ctx.restore();
+    }
+
+    // 3. Sprite colosal de Donkey Kong Corrupto
+    const dkx = boss.dkPos.x;
+    const dky = boss.dkPos.y;
+    ctx.save();
+    // Sombra del jefe
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath();
+    ctx.ellipse(dkx, dky + 28, 36, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Aura de corrupción de Super KOOPA
+    if (boss.phase === 2) {
+      ctx.strokeStyle = '#c084fc';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(dkx, dky, 42 + Math.sin(elapsed * 8) * 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Cuerpo masivo de gorila
+    ctx.fillStyle = '#451a03';
+    ctx.fillRect(dkx - 28, dky - 24, 56, 48);
+    ctx.fillStyle = '#713f12';
+    ctx.fillRect(dkx - 24, dky - 20, 48, 42);
+
+    // Pecho y rostro dorados
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(dkx - 14, dky - 10, 28, 24);
+    ctx.fillStyle = '#fed7aa';
+    ctx.fillRect(dkx - 18, dky - 30, 36, 16);
+
+    // Corbata roja legendaria "DK"
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.moveTo(dkx - 5, dky - 14);
+    ctx.lineTo(dkx + 5, dky - 14);
+    ctx.lineTo(dkx + 7, dky + 10);
+    ctx.lineTo(dkx, dky + 16);
+    ctx.lineTo(dkx - 7, dky + 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#fef08a';
+    ctx.font = '900 7px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('DK', dkx, dky - 2);
+
+    // Venas de corrupción violeta en los brazos
+    ctx.fillStyle = '#c084fc';
+    ctx.fillRect(dkx - 26, dky - 8, 4, 18);
+    ctx.fillRect(dkx + 22, dky - 8, 4, 18);
+
+    // Ojos (rojo furia si lucha, mareado si aturdido)
+    if (boss.phase === 3) {
+      ctx.fillStyle = '#facc15';
+      ctx.font = '700 9px monospace';
+      ctx.fillText('★', dkx - 8, dky - 34);
+      ctx.fillText('★', dkx + 8, dky - 34);
+    } else {
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(dkx - 10, dky - 24, 6, 4);
+      ctx.fillRect(dkx + 4, dky - 24, 6, 4);
+    }
+
+    // Brazos golpeando
+    const armOffset = Math.sin(elapsed * 7) * 4;
+    ctx.fillStyle = '#542d0c';
+    ctx.fillRect(dkx - 34, dky - 6 + armOffset, 12, 28);
+    ctx.fillRect(dkx + 22, dky - 6 - armOffset, 12, 28);
+    ctx.restore();
+
+    // 4. Barra de vida del Jefe en el HUD superior de la sala
+    const barW = 320;
+    const barX = Math.round(area.width / 2 - barW / 2);
+    const barY = 28;
+    const hpPct = Math.max(0, Math.min(1, boss.bossHp / boss.maxHp));
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(7, 5, 15, 0.9)';
+    ctx.fillRect(barX - 8, barY - 18, barW + 16, 36);
+    ctx.strokeStyle = '#c084fc';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX - 8, barY - 18, barW + 16, 36);
+
+    ctx.fillStyle = '#1e1b4b';
+    ctx.fillRect(barX, barY - 4, barW, 14);
+
+    const hpGrad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+    hpGrad.addColorStop(0, '#ef4444');
+    hpGrad.addColorStop(0.6, '#ec4899');
+    hpGrad.addColorStop(1, '#a855f7');
+    ctx.fillStyle = hpGrad;
+    ctx.fillRect(barX, barY - 4, Math.round(barW * hpPct), 14);
+
+    ctx.font = '700 9px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    const titleText =
+      boss.phase === 3
+        ? '¡NÚCLEO DIGITAL DE SUPER KOOPA EXPUESTO!'
+        : `REY DONKEY KONG CORRUPTO [FASE ${boss.phase}]`;
+    ctx.fillText(`${titleText} · ${Math.round(boss.bossHp)}/${boss.maxHp}`, area.width / 2, barY - 8);
+    ctx.restore();
+  }
+
   // NPCs originales dentro de la sub-área
   for (const npc of RPG_SUBAREA_NPCS) {
     if (npc.areaId !== area.id) continue;
+    // Si estamos en castle-trono y Donkey Kong no ha sido purificado, no dibujar el NPC pacífico
+    if (npc.id === 'npc-donkey-kong-freed' && boss && !boss.dkPurified) continue;
+
     drawPixelAvatar4Dir(
       ctx,
       npc.x,
@@ -793,6 +1282,7 @@ export function renderSubAreaFrame(params: SubAreaRenderParams): void {
       equippedCosmetic: progressState.rpg.equippedCosmetic,
       lanternActive: progressState.rpg.lanternActive,
       interactAnim: player.interactAnim,
+      appearance,
     }
   );
 
@@ -902,6 +1392,61 @@ export function renderSubAreaFrame(params: SubAreaRenderParams): void {
     ctx.textAlign = 'center';
     ctx.fillText(badgeText, prompt.x, py + 1);
     ctx.restore();
+  }
+
+  // Banner de Objetivo Inmediato del Castillo (HUD superior)
+  if (area.id.startsWith('castle-')) {
+    let objectiveText = '';
+    const solved = progressState.rpg.solvedPuzzleIds;
+    if (area.id === 'castle-murallas') {
+      const isDrawbridgeDown =
+        allUnlocked ||
+        solved.includes('puzzle-sellos-castillo') ||
+        progressState.rpg.discoveredSecretIds.includes('castle-drawbridge-lowered');
+      objectiveText = isDrawbridgeDown
+        ? '✓ PUENTE LEVADIZO BAJADO · ACCESO AL LABERINTO EXPEDITO'
+        : 'OBJETIVO: ACTIVA LOS 4 SELLOS (SOL ☀ → LUNA ☾ → ESTRELLA ★ → RAYO ⚡) PARA BAJAR EL PUENTE';
+    } else if (area.id === 'castle-laberinto') {
+      objectiveText = 'OBJETIVO: RESUELVE EL LABERINTO Y ENCUENTRA EL PASADIZO A LOS CIMIENTOS';
+    } else if (area.id === 'castle-cimientos') {
+      const isHydraulicSolved = allUnlocked || solved.includes('puzzle-valvulas-hidraulicas');
+      objectiveText = isHydraulicSolved
+        ? '✓ PRESIÓN EQUILIBRADA · MONTACARGAS A LA BIBLIOTECA ACTIVO'
+        : 'OBJETIVO: CALIBRA LAS 3 VÁLVULAS (CAUDAL → VAPOR → DRENAJE) PARA DRENAR LA FOSA';
+    } else if (area.id === 'castle-biblioteca') {
+      const isChronicleSolved = allUnlocked || solved.includes('puzzle-cronica-reyes');
+      objectiveText = isChronicleSolved
+        ? '✓ CRÓNICA COMPLETADA · PASADIZO A LA TORRE DEL TIEMPO REVELADO'
+        : 'OBJETIVO: COLOCA LOS 4 FRAGMENTOS DE LA CRÓNICA EN LOS ATRIL CON LUZ DEDICADA';
+    } else if (area.id === 'castle-torre') {
+      const isTowerSolved = allUnlocked || solved.includes('puzzle-torre-tiempo');
+      objectiveText = isTowerSolved
+        ? '✓ ENGRANAJES ALINEADOS · PUERTAS A LA SALA DEL TRONO ABIERTAS'
+        : 'OBJETIVO: ACCIONA LAS PALANCAS DE ENGRANAJE IZQUIERDA Y DERECHA EN LA TORRE';
+    } else if (area.id === 'castle-trono') {
+      const isDkFreed =
+        allUnlocked || progressState.rpg.discoveredSecretIds.includes('castle-donkey-kong-freed');
+      objectiveText = isDkFreed
+        ? '✓ DONKEY KONG LIBERADO · ABORDA LA NAVE DE SPACE INVADERS HACIA LA ISLA 80S'
+        : 'OBJETIVO: DERROTA A SUPER KOOPA, PURIFICA A DONKEY KONG Y LIBERA LA NAVE';
+    }
+
+    if (objectiveText) {
+      ctx.save();
+      const bw = Math.min(600, area.width - 32);
+      const bx = area.width / 2 - bw / 2;
+      const by = area.height <= vh ? 16 : Math.max(16, camY + 16);
+      ctx.fillStyle = 'rgba(7, 5, 15, 0.92)';
+      ctx.fillRect(bx, by, bw, 24);
+      ctx.strokeStyle = area.accentHex;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(bx, by, bw, 24);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 9px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(objectiveText, area.width / 2, by + 15);
+      ctx.restore();
+    }
   }
 
   ctx.restore();

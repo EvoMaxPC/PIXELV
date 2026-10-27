@@ -316,6 +316,74 @@ export const ISLAND_WALKABLE_RECTS: WalkableRect[] = [
   { id: 'costa-ruinas-tiempo', x: 2992, y: 1360, w: 400, h: 240, zoneId: 'puerto-islas-perdidas', surface: 'sand' },
 ];
 
+/** Cierra el paso sur entre la fortaleza y el puerto; el ferry sigue accesible desde la costa. */
+export const ISLAND_ROUTE_RAILS = [
+  { id: 'fortaleza-puerto-divider', x1: 2960, y1: 960, x2: 3200, y2: 960, radius: 12 },
+] as const;
+
+export function isBlockedByIslandRouteRail(x: number, y: number): boolean {
+  return ISLAND_ROUTE_RAILS.some((rail) => {
+    const closestX = Math.max(rail.x1, Math.min(x, rail.x2));
+    const dx = x - closestX;
+    const dy = y - rail.y1;
+    return dx * dx + dy * dy <= rail.radius * rail.radius;
+  });
+}
+
+export const NORTH_ARCADE_LAYOUT = {
+  junction: { x: 1952, y: -240 },
+  arcades: {
+    breakout: { x: 1856, y: -240 },
+    asteroids: { x: 2048, y: -240 },
+    seaWolf: { x: 1984, y: -432 },
+    tank: { x: 2008, y: -48 },
+    spaceInvaders: { x: 2208, y: -240 },
+    lunarLander: { x: 1696, y: -240 },
+  },
+} as const;
+
+/** Tres gabinetes originales ubicados en el bastión volcánico, tras el puente astral. */
+export const VOLCANIC_ARCADE_LAYOUT = {
+  asteroids: { x: 2768, y: 568 },
+  spaceInvaders: { x: 2984, y: 696 },
+  breakout: { x: 2784, y: 832 },
+  breakoutStone: { x: 2872, y: 832 },
+  guard: { x: 2512, y: 688 },
+  accessGateX: 2580,
+} as const;
+
+export const VOLCANIC_GUARD_ID = 'npc-volcanic-guard';
+
+export function isVolcanicArcadeCabinetBlocked(x: number, y: number): boolean {
+  return [
+    VOLCANIC_ARCADE_LAYOUT.asteroids,
+    VOLCANIC_ARCADE_LAYOUT.spaceInvaders,
+    VOLCANIC_ARCADE_LAYOUT.breakout,
+  ].some((cabinet) => Math.abs(x - cabinet.x) < 32 && y >= cabinet.y - 68 && y <= cabinet.y + 4);
+}
+
+export function isBlockedByVolcanicGuardGate(x: number, y: number, open: boolean): boolean {
+  if (open) return false;
+  const dx = x - VOLCANIC_ARCADE_LAYOUT.accessGateX;
+  return dx * dx <= 12 * 12 && y >= 368 && y <= 960;
+}
+
+export function isBreakoutLegendStoneBlocked(x: number, y: number): boolean {
+  return Math.abs(x - VOLCANIC_ARCADE_LAYOUT.breakoutStone.x) <= 29 &&
+    y >= VOLCANIC_ARCADE_LAYOUT.breakoutStone.y - 19 &&
+    y <= VOLCANIC_ARCADE_LAYOUT.breakoutStone.y + 15;
+}
+
+export function isNorthArcadeCabinetBlocked(x: number, y: number): boolean {
+  return [
+    NORTH_ARCADE_LAYOUT.arcades.seaWolf,
+    NORTH_ARCADE_LAYOUT.arcades.tank,
+    NORTH_ARCADE_LAYOUT.arcades.lunarLander,
+  ].some(
+    (cabinet) => Math.abs(x - cabinet.x) < 25 && y >= cabinet.y - 66 && y <= cabinet.y + 4
+  );
+}
+
 export const ISLAND_KEY_COORDS = {
   awakeningSpawn: { x: 470, y: 1830 },
   pongCabinet: { x: 2820, y: 1660 },
@@ -323,7 +391,7 @@ export const ISLAND_KEY_COORDS = {
   pongBoardLanding: { x: 1760, y: 780 },
   glitchTrailPortal: { x: 1880, y: 645 },
   glitchTrailReturn: { x: 2020, y: 685 },
-  invadersCabinet: { x: 2910, y: 650 },
+  invadersCabinet: VOLCANIC_ARCADE_LAYOUT.spaceInvaders,
   starShuttlePad: { x: 2680, y: 495 },
   starShuttleDisembark: { x: 2742, y: 522 },
   architectAstrolabe: { x: 1940, y: 275 },

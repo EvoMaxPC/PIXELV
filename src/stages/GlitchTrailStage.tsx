@@ -22,11 +22,14 @@ import { ArrowLeft, Diamond, Layers, RotateCcw, Sparkles, Zap } from 'lucide-rea
 import { retroAudio } from '../audio/retroAudio';
 import { getHistoricalMemory } from '../memories/historicalCatalog';
 import { MemoryUnlockedModal } from '../memories/MemoryUnlockedModal';
+import { drawPixelAvatar4Dir } from '../island/island70sRenderer';
+import type { AvatarAppearance } from '../avatar/avatarOptions';
 
 export interface GlitchTrailStageProps {
   skinColor: string;
   hairColor: string;
   shirtColor: string;
+  appearance: AvatarAppearance;
   collectedDiamondIds: string[];
   alreadyRestoredBefore: boolean;
   discoveredEchoIds: string[];
@@ -672,6 +675,7 @@ export function GlitchTrailStage({
   skinColor,
   hairColor,
   shirtColor,
+  appearance,
   collectedDiamondIds,
   alreadyRestoredBefore,
   discoveredEchoIds,
@@ -2469,72 +2473,19 @@ export function GlitchTrailStage({
       }
       ctx.globalAlpha = 1;
 
-      // Pixel
+      // Shared Pixel sprite: the same saved outfit and gear as the island explorer.
       ctx.save();
-      if (player.invulnTimer > 0 && Math.floor(elapsed * 16) % 2 === 0) {
-        ctx.globalAlpha = 0.55;
-      }
-      const px = Math.round(player.x);
-      const py = Math.round(player.y);
-      const walkingFrame = Math.floor(elapsed * 12) % 4;
-      const stepping = Math.abs(player.vx) > 26 && player.grounded;
-      const legShift = stepping ? walkingFrame === 1 ? 3 : walkingFrame === 3 ? -3 : 0 : 0;
+      if (player.invulnTimer > 0 && Math.floor(elapsed * 16) % 2 === 0) ctx.globalAlpha = 0.55;
       if (shieldTimer > 0) {
-        ctx.fillStyle = 'rgba(34, 211, 238, 0.16)';
-        ctx.fillRect(px - 8, py - 7, 38, 48);
-        ctx.fillStyle = '#67e8f9';
-        ctx.fillRect(px - 8, py + 1, 3, 24);
-        ctx.fillRect(px + 27, py + 1, 3, 24);
-        ctx.fillRect(px - 3, py - 7, 28, 2);
-        ctx.fillRect(px - 3, py + 39, 28, 2);
+        ctx.fillStyle = 'rgba(34, 211, 238, 0.22)';
+        ctx.fillRect(player.x - 10, player.y - 9, player.w + 20, player.h + 18);
+        ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 2;
+        ctx.strokeRect(player.x - 10, player.y - 9, player.w + 20, player.h + 18);
       }
-      ctx.fillStyle = '#070b18';
-      ctx.fillRect(px + 2, py, 18, 8);
-      ctx.fillStyle = hairColor;
-      ctx.fillRect(px + 3, py + 1, 16, 6);
-      ctx.fillRect(px + 5, py - 2, 12, 3);
-      ctx.fillStyle = '#fff4b8';
-      ctx.fillRect(px + 6, py, 5, 2);
-      ctx.fillStyle = '#070b18';
-      ctx.fillRect(px + 3, py + 6, 16, 12);
-      ctx.fillStyle = skinColor;
-      ctx.fillRect(px + 5, py + 7, 12, 8);
-      ctx.fillStyle = '#05070f';
-      if (player.facing >= 0) {
-        ctx.fillRect(px + 11, py + 9, 2, 3);
-        ctx.fillRect(px + 15, py + 9, 2, 3);
-      } else {
-        ctx.fillRect(px + 5, py + 9, 2, 3);
-        ctx.fillRect(px + 9, py + 9, 2, 3);
-      }
-      ctx.fillStyle = '#d08f68';
-      ctx.fillRect(px + 5, py + 14, 12, 2);
-      ctx.fillStyle = '#070b18';
-      ctx.fillRect(px + 1, py + 15, 20, 14);
-      ctx.fillStyle = shirtColor;
-      ctx.fillRect(px + 3, py + 16, 16, 12);
-      ctx.fillStyle = '#fff4b8';
-      ctx.fillRect(px + 4, py + 17, 3, 3);
-      ctx.fillStyle = '#0e2935';
-      ctx.fillRect(px + 10, py + 17, 2, 9);
-      ctx.fillStyle = '#facc15';
-      ctx.fillRect(px + 3, py + 25, 16, 2);
-      ctx.fillStyle = '#070b18';
-      ctx.fillRect(px + 3 + legShift, py + 27, 7, 7);
-      ctx.fillRect(px + 12 - legShift, py + 27, 7, 7);
-      ctx.fillStyle = '#334155';
-      ctx.fillRect(px + 4 + legShift, py + 28, 5, 4);
-      ctx.fillRect(px + 13 - legShift, py + 28, 5, 4);
-      ctx.fillStyle = '#cbd5e1';
-      ctx.fillRect(px + 5 + legShift, py + 29, 3, 1);
-      ctx.fillRect(px + 14 - legShift, py + 29, 3, 1);
-      if (attackCooldown > 0.19) {
-        const muzzleX = px + (player.facing > 0 ? player.w + 1 : -11);
-        ctx.fillStyle = '#00f3ff';
-        ctx.fillRect(muzzleX, py + 17, 9, 4);
-        ctx.fillStyle = '#fff1b8';
-        ctx.fillRect(muzzleX + (player.facing > 0 ? 5 : 1), py + 18, 3, 2);
-      }
+      const stepping = Math.abs(player.vx) > 26 && player.grounded;
+      ctx.translate(player.x + player.w / 2, player.y + player.h);
+      ctx.scale(0.8, 0.8);
+      drawPixelAvatar4Dir(ctx, 0, 0, player.facing >= 0 ? 'right' : 'left', stepping, false, elapsed, skinColor, hairColor, shirtColor, { appearance });
       ctx.restore();
 
       for (const sp of sparks) {
@@ -2558,7 +2509,7 @@ export function GlitchTrailStage({
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [hairColor, notifyToast, shirtColor, skinColor]);
+  }, [appearance, hairColor, notifyToast, shirtColor, skinColor]);
 
   const trailDiamondsCollected = TRAIL_DIAMONDS.filter((d) =>
     collectedDiamondIds.includes(d.id)

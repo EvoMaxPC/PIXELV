@@ -31,7 +31,13 @@ export type RpgAreaId =
   | 'cave-gruta-cascada'
   | 'cave-cavidad-aurora'
   | 'cave-camara-eco'
-  | 'island-80s';
+  | 'island-80s'
+  | 'castle-murallas'
+  | 'castle-laberinto'
+  | 'castle-cimientos'
+  | 'castle-biblioteca'
+  | 'castle-torre'
+  | 'castle-trono';
 
 export type RpgItemCategory =
   | 'herramienta'
@@ -269,7 +275,16 @@ export interface SubAreaSpec {
       | 'labyrinth-wall'
       | 'rgb-frequency-pillar'
       | 'breakout-cabinet-1976'
-      | 'vector-projector';
+      | 'vector-projector'
+      | 'castle-throne'
+      | 'castle-gear'
+      | 'castle-pendulum'
+      | 'castle-valve'
+      | 'castle-lectern'
+      | 'space-invaders-ship'
+      | 'corruption-core'
+      | 'castle-banner'
+      | 'castle-statue';
     x: number;
     y: number;
     w: number;
@@ -503,6 +518,78 @@ export const RPG_ITEMS: Record<string, RpgItemSpec> = {
     usageHint: 'Sincroniza la galería norte del Museo Viviente de los 70.',
     usableAction: 'inspect',
   },
+  'item-polvo-fosforo': {
+    id: 'item-polvo-fosforo',
+    name: 'Fósforo Ámbar de Pong (1972)',
+    category: 'pieza-arcade',
+    categoryLabel: 'COMBUSTIBLE DE VUELO',
+    accentHex: '#facc15',
+    shortCode: 'FOS-72',
+    description:
+      'Fósforo concentrado de alta energía recuperado en el Santuario de Pong. Alimenta la Paleta Voladora de Pong para planear sobre agua y barrancos.',
+    usageHint: 'Activa la Paleta Voladora en el selector de habilidades [1-4].',
+    usableAction: 'inspect',
+  },
+  'item-espada-cambiante': {
+    id: 'item-espada-cambiante',
+    name: 'Espada Cambiante de Breakout (1976)',
+    category: 'herramienta',
+    categoryLabel: 'HABILIDAD PRINCIPAL',
+    accentHex: '#f97316',
+    shortCode: 'ESP-76',
+    description:
+      'Arma de luz cromática con 3 modos: Espada Corta, Espada Extensible de 4 bandas y Pistola de Energía de rebote. Destruye bloques de cristal y activa interruptores lejanos.',
+    usageHint: 'Selecciona la Espada Cambiante con [1-4] y ataca con [F / Acción].',
+    usableAction: 'inspect',
+  },
+  'item-modulo-orbital': {
+    id: 'item-modulo-orbital',
+    name: 'Módulo de Dash Orbital (1979)',
+    category: 'herramienta',
+    categoryLabel: 'HABILIDAD PRINCIPAL',
+    accentHex: '#00f3ff',
+    shortCode: 'DSH-79',
+    description:
+      'Propulsor vectorial de inercia pura de Asteroids (1979). Realiza un impulso a alta velocidad que destruye barreras de glitch e irrumpe en el Sendero Glitch.',
+    usageHint: 'Selecciona Dash Orbital con [1-4] y ejecútalo con [F / Acción].',
+    usableAction: 'inspect',
+  },
+  'item-sonar-profundidad': {
+    id: 'item-sonar-profundidad',
+    name: 'Emisor de Pulso Sonar (1976)',
+    category: 'herramienta',
+    categoryLabel: 'HABILIDAD PRINCIPAL',
+    accentHex: '#10b981',
+    shortCode: 'SNR-76',
+    description:
+      'Dispositivo de periscopio de Sea Wolf (1976) que emite ondas sonoras acopladas. Revela pasadizos ocultos, mecanismos sumergidos y cofres invisibles.',
+    usageHint: 'Selecciona Pulso Sonar con [1-4] y emite ondas con [F / Acción].',
+    usableAction: 'inspect',
+  },
+  'item-llave-bunker-militar': {
+    id: 'item-llave-bunker-militar',
+    name: 'Llave de Acceso al Búnker Militar (1974)',
+    category: 'llave',
+    categoryLabel: 'LLAVE TÁCTICA',
+    accentHex: '#a3e635',
+    shortCode: 'BNK-74',
+    description:
+      'Llave pesada obtenida al vencer la prueba del laberinto de Tank (1974). Abre el Búnker Militar en las Ruinas Centrales.',
+    usageHint: 'Utilízala frente al portón blindado de las Ruinas.',
+    usableAction: 'inspect',
+  },
+  'item-lente-cuantica-vectorial': {
+    id: 'item-lente-cuantica-vectorial',
+    name: 'Lente Cuántica Vectorial (1979)',
+    category: 'pieza-arcade',
+    categoryLabel: 'ARTEFACTO ASTRONÁUTICO',
+    accentHex: '#a78bfa',
+    shortCode: 'LNT-79',
+    description:
+      'Lente de alta precisión de Lunar Lander (1979). Calibra los sensores de altitud del Observatorio Vectorial.',
+    usageHint: 'Llévala al proyector de las Cavernas del Código.',
+    usableAction: 'inspect',
+  },
   'item-memoria-aurora': {
     id: 'item-memoria-aurora',
     name: 'Memoria de la Aurora',
@@ -525,6 +612,102 @@ export const RPG_ITEMS: Record<string, RpgItemSpec> = {
     description:
       'Fragmento de cuarzo que retiene un eco estable de la aurora; recompensa de la cámara más profunda de la cordillera.',
     usageHint: 'Reliquia persistente conservada en el archivo de exploración.',
+    usableAction: 'inspect',
+  },
+  'item-llave-torres-castillo': {
+    id: 'item-llave-torres-castillo',
+    name: 'Sello de las Cuatro Torres',
+    category: 'llave',
+    categoryLabel: 'SELLO ANTIGUO',
+    accentHex: '#c084fc',
+    shortCode: 'SEAL-4T',
+    description:
+      'Insignia tallada con los símbolos del Sol, Luna, Estrella y Rayo. Bajó el puente levadizo del castillo.',
+    usageHint: 'Permite el libre tránsito por las murallas exteriores.',
+    usableAction: 'inspect',
+  },
+  'item-cronica-fragmento-1': {
+    id: 'item-cronica-fragmento-1',
+    name: 'Crónica del Rey · Fragmento I',
+    category: 'cinta-memoria',
+    categoryLabel: 'CRÓNICA HISTÓRICA',
+    accentHex: '#f59e0b',
+    shortCode: 'CRON-01',
+    description:
+      '«En la era fundacional, el Rey Guardián Donkey Kong erigió la fortaleza para salvaguardar la memoria del videojuego».',
+    usageHint: 'Colócalo en el primer atril de la Gran Biblioteca de los Reyes.',
+    usableAction: 'inspect',
+  },
+  'item-cronica-fragmento-2': {
+    id: 'item-cronica-fragmento-2',
+    name: 'Crónica del Rey · Fragmento II',
+    category: 'cinta-memoria',
+    categoryLabel: 'CRÓNICA HISTÓRICA',
+    accentHex: '#38bdf8',
+    shortCode: 'CRON-02',
+    description:
+      '«En el hangar de la cima aguardaba la nave estelar, el puente sagrado hacia las siguientes épocas históricas».',
+    usageHint: 'Colócalo en el segundo atril de la Gran Biblioteca de los Reyes.',
+    usableAction: 'inspect',
+  },
+  'item-cronica-fragmento-3': {
+    id: 'item-cronica-fragmento-3',
+    name: 'Crónica del Rey · Fragmento III',
+    category: 'cinta-memoria',
+    categoryLabel: 'CRÓNICA HISTÓRICA',
+    accentHex: '#a855f7',
+    shortCode: 'CRON-03',
+    description:
+      '«Una sombra con fuego oscuro y caparazón de púas, Super KOOPA, corrompió los mecanismos y sumió la mente del rey en tinieblas».',
+    usageHint: 'Colócalo en el tercer atril de la Gran Biblioteca de los Reyes.',
+    usableAction: 'inspect',
+  },
+  'item-cronica-fragmento-4': {
+    id: 'item-cronica-fragmento-4',
+    name: 'Crónica del Rey · Fragmento IV',
+    category: 'cinta-memoria',
+    categoryLabel: 'CRÓNICA HISTÓRICA',
+    accentHex: '#ef4444',
+    shortCode: 'CRON-04',
+    description:
+      '«Solo destruyendo el Núcleo Digital sobre el trono podrá liberarse al monarca y abrirse el cielo estrellado».',
+    usageHint: 'Colócalo en el cuarto atril de la Gran Biblioteca de los Reyes.',
+    usableAction: 'inspect',
+  },
+  'item-nucleo-vital-castillo': {
+    id: 'item-nucleo-vital-castillo',
+    name: 'Núcleo de Vapor Ancestral',
+    category: 'reliquia',
+    categoryLabel: 'RELIQUIA VITAL',
+    accentHex: '#10b981',
+    shortCode: 'CORE-VP',
+    description:
+      'Engranaje milenario que late con agua termal y energía analógica. Hallado en la cámara secreta de los Cimientos.',
+    usageHint: 'Otorga bendición de resistencia en el combate final.',
+    usableAction: 'inspect',
+  },
+  'item-llave-hangar-dk': {
+    id: 'item-llave-hangar-dk',
+    name: 'Llave Maestra del Hangar',
+    category: 'llave',
+    categoryLabel: 'LLAVE MAESTRA',
+    accentHex: '#eab308',
+    shortCode: 'KEY-DK',
+    description:
+      'Llave ceremonial entregada por Donkey Kong tras liberarlo del control de Super KOOPA. Activa el lanzamiento de la nave de Space Invaders.',
+    usageHint: 'Insértala en la consola de la nave de Space Invaders tras el trono.',
+    usableAction: 'inspect',
+  },
+  'item-pase-travesia': {
+    id: 'item-pase-travesia',
+    name: 'Pase de Travesía de Isla Orígenes',
+    category: 'llave',
+    categoryLabel: 'PASAPORTE DE LIBERACIÓN',
+    accentHex: '#f59e0b',
+    shortCode: 'PAS-ORG',
+    description:
+      'Emblema de bronce dorado entregado por el Rey Donkey Kong tras ser purificado de Super KOOPA. Certifica la liberación completa de Isla Orígenes y autoriza el despegue en la nave de Space Invaders.',
+    usageHint: 'Insértalo en la consola de la nave de Space Invaders en el hangar del trono para viajar a la Isla de los 80.',
     usableAction: 'inspect',
   },
 };
@@ -754,6 +937,55 @@ export const RPG_QUESTS: RpgQuestSpec[] = [
     ],
     rewardSummary: 'Logro Cronista de los 70 + Lámina de Celofán y Lente Vectorial',
     rewardItemIds: ['item-filtro-interdecada'],
+  },
+  {
+    id: 'quest-castillo-rey-corrupto',
+    code: 'MIS-09',
+    title: 'El Castillo del Rey Corrupto',
+    giverName: 'Eco de los Antiguos Guardianes',
+    decadeTag: 'CORDILLERA NORTE · CASTILLO COLOSAL',
+    accentHex: '#c084fc',
+    summary:
+      'Explora la cumbre norte, desactiva los cuatro sellos para bajar el puente levadizo, atraviesa el laberinto, los cimientos hidráulicos, la biblioteca y la torre del tiempo hasta la sala del trono para liberar a Donkey Kong de Super KOOPA.',
+    steps: [
+      {
+        label: 'Activar los cuatro sellos de las torres (Sol ☀, Luna ☾, Estrella ★, Rayo ⚡) y bajar el puente',
+        isDone: (st, all) =>
+          all ||
+          st.rpg.solvedPuzzleIds.includes('puzzle-sellos-castillo') ||
+          st.rpg.discoveredSecretIds.includes('castle-drawbridge-lowered'),
+      },
+      {
+        label: 'Atravesar el Laberinto de las Doce Puertas y los Cimientos Hidráulicos',
+        isDone: (st, all) =>
+          all ||
+          st.rpg.solvedPuzzleIds.includes('puzzle-valvulas-hidraulicas') ||
+          st.rpg.discoveredSecretIds.includes('castle-labyrinth-cleared'),
+      },
+      {
+        label: 'Ordenar los cuatro fragmentos de la crónica en la Gran Biblioteca de los Reyes',
+        isDone: (st, all) =>
+          all ||
+          st.rpg.solvedPuzzleIds.includes('puzzle-cronica-reyes') ||
+          st.rpg.discoveredSecretIds.includes('castle-library-cleared'),
+      },
+      {
+        label: 'Sincronizar la Torre del Tiempo y alcanzar la Sala del Trono',
+        isDone: (st, all) =>
+          all ||
+          st.rpg.solvedPuzzleIds.includes('puzzle-torre-tiempo') ||
+          st.rpg.discoveredSecretIds.includes('castle-throne-reached'),
+      },
+      {
+        label: 'Derrotar la Corrupción de Super KOOPA, liberar al Rey Donkey Kong y despegar en la Nave',
+        isDone: (st, all) =>
+          all ||
+          Boolean(st.games['donkey-kong']?.memoryUnlocked) ||
+          st.rpg.discoveredSecretIds.includes('castle-donkey-kong-freed'),
+      },
+    ],
+    rewardSummary: 'Llave Maestra del Hangar + Nave Space Invaders + Paso a la Isla de los 80',
+    rewardItemIds: ['item-llave-hangar-dk', 'item-insignia-vigas-1981'],
   },
 ];
 
@@ -1375,6 +1607,44 @@ export const RPG_CHESTS: RpgChestSpec[] = [
     rewardItemIds: ['item-cristal-armonico'],
     requiresPuzzleId: 'puzzle-eco-4-frecuencias',
   },
+  {
+    id: 'chest-laberinto-secreto',
+    areaId: 'castle-laberinto',
+    label: 'Arcón de las Doce Puertas',
+    x: 780,
+    y: 160,
+    accentHex: '#818cf8',
+    rewardItemIds: ['item-cronica-fragmento-1'],
+  },
+  {
+    id: 'chest-cimientos-vapor',
+    areaId: 'castle-cimientos',
+    label: 'Cámara Estanca de los Cimientos',
+    x: 760,
+    y: 180,
+    accentHex: '#06b6d4',
+    rewardItemIds: ['item-nucleo-vital-castillo'],
+    requiresPuzzleId: 'puzzle-valvulas-hidraulicas',
+  },
+  {
+    id: 'chest-biblioteca-arcano',
+    areaId: 'castle-biblioteca',
+    label: 'Atril de Manuscritos Prohibidos',
+    x: 180,
+    y: 180,
+    accentHex: '#f59e0b',
+    rewardItemIds: ['item-cronica-fragmento-2', 'item-cronica-fragmento-3'],
+  },
+  {
+    id: 'chest-torre-archivo',
+    areaId: 'castle-torre',
+    label: 'Relicario del Péndulo Boreal',
+    x: 780,
+    y: 220,
+    accentHex: '#fbbf24',
+    rewardItemIds: ['item-cronica-fragmento-4'],
+    requiresPuzzleId: 'puzzle-torre-tiempo',
+  },
 ];
 
 /* ============================================================================
@@ -1692,12 +1962,237 @@ export const RPG_EXAMINABLES: RpgExaminableSpec[] = [
     hint: 'En la Cámara del Eco Boreal, sigue el orden tenue → horizonte → doble → retorno.',
     clueIdToDiscover: 'clue-cuatro-frecuencias-boreales',
   },
+  {
+    id: 'exam-castillo-portal-estela',
+    areaId: 'exterior-70s',
+    label: 'Estela Rúnica del Puente Levadizo',
+    actionLabel: 'Leer Inscripción Milenaria',
+    x: 1952,
+    y: -480,
+    accentHex: '#c084fc',
+    category: 'CASTILLO DEL REY CORRUPTO · SELLO EXTERIOR',
+    paragraphs: [
+      'Una losa de basalto oscuro grabada con runas luminosas: «Las cuatro torres vigilan el abismo septentrional. El puente sólo descenderá para aquel que encienda los pedestales en el orden del ciclo eterno:»',
+      '«Primero despierta el Sol [☀] al alba. Al atardecer responde la Luna [☾]. En la noche guían las Estrellas [★], y la tormenta concluye con el Rayo [⚡].»',
+    ],
+    hint: 'Sigue el orden: 1. Sol ☀ → 2. Luna ☾ → 3. Estrella ★ → 4. Rayo ⚡ para descender el puente levadizo.',
+    clueIdToDiscover: 'clue-sellos-cuatro-torres',
+  },
+  {
+    id: 'exam-castillo-muralla-mural',
+    areaId: 'castle-murallas',
+    label: 'Mural de la Guardia Antigua',
+    actionLabel: 'Examinar Relieve',
+    x: 440,
+    y: 170,
+    accentHex: '#c084fc',
+    category: 'MURALLAS DEL DESTIERRO · CRÓNICA DE DEFENSA',
+    paragraphs: [
+      'El relieve tallado muestra a Donkey Kong protegiendo con sus brazos la nave estelar en la cumbre: «El guardián juró custodiar el paso entre mundos».',
+      'Sin embargo, grietas de cristal violeta atraviesan la piedra: la corrupción digital de Super KOOPA envenenó el corazón de la fortaleza.',
+    ],
+  },
+  {
+    id: 'exam-castillo-laberinto-puerta-atajo',
+    areaId: 'castle-laberinto',
+    label: 'Reja de Hierro Forjado · Atajo Bidireccional',
+    actionLabel: 'Accionar Palanca de Paso',
+    x: 480,
+    y: 310,
+    accentHex: '#818cf8',
+    category: 'LABERINTO DE LAS DOCE PUERTAS · ATAJO',
+    paragraphs: [
+      'Una pesada compuerta de rejas de hierro que comunica directamente la entrada del laberinto con las escaleras subterráneas.',
+    ],
+  },
+  {
+    id: 'exam-castillo-laberinto-glifo-alfa',
+    areaId: 'castle-laberinto',
+    label: 'Glifo Alfa [α] · Memoria de 1971',
+    actionLabel: 'Sintonizar Frecuencia',
+    x: 240,
+    y: 200,
+    accentHex: '#38bdf8',
+    category: 'LABERINTO DE LAS DOCE PUERTAS · GUÍA HISTÓRICA',
+    paragraphs: [
+      'Inscripción de bronce pulido: «Las doce compuertas abren caminos ilusorios salvo la secuencia histórica: Computer Space (1971) → Pong (1972) → Breakout (1976) → Space Invaders (1978).»',
+    ],
+    hint: 'Sigue los glifos de las décadas hacia el norte para descender a los Cimientos.',
+  },
+  {
+    id: 'exam-castillo-valvula-caudal',
+    areaId: 'castle-cimientos',
+    label: 'Válvula de Caudal Hidráulico [A]',
+    actionLabel: 'Girar Válvula A',
+    x: 220,
+    y: 230,
+    accentHex: '#06b6d4',
+    category: 'CIMIENTOS DEL REINO · SISTEMA HIDRÁULICO',
+    paragraphs: [
+      'Una rueda de latón conectada al acueducto subterráneo. Al girarla, el agua fluye con fuerza hacia los pistones del montacargas.',
+    ],
+  },
+  {
+    id: 'exam-castillo-valvula-drenaje',
+    areaId: 'castle-cimientos',
+    label: 'Válvula de Drenaje Abisal [B]',
+    actionLabel: 'Girar Válvula B',
+    x: 460,
+    y: 230,
+    accentHex: '#06b6d4',
+    category: 'CIMIENTOS DEL REINO · SISTEMA HIDRÁULICO',
+    paragraphs: [
+      'Válvula inferior de drenaje. Desaloja el exceso de agua termal de la fosa central.',
+    ],
+  },
+  {
+    id: 'exam-castillo-valvula-presion',
+    areaId: 'castle-cimientos',
+    label: 'Válvula de Presión de Vapor [C]',
+    actionLabel: 'Girar Válvula C',
+    x: 700,
+    y: 230,
+    accentHex: '#06b6d4',
+    category: 'CIMIENTOS DEL REINO · SISTEMA HIDRÁULICO',
+    paragraphs: [
+      'Válvula de purga de vapor a alta presión. Permite equilibrar el flujo antes del drenaje final.',
+    ],
+    hint: 'El orden hidráulico correcto es: Flujo [A] → Vapor [C] → Drenaje [B].',
+  },
+  {
+    id: 'exam-castillo-biblioteca-atril-1',
+    areaId: 'castle-biblioteca',
+    label: 'Atril I · La Era Fundacional',
+    actionLabel: 'Inspeccionar Atril I',
+    x: 230,
+    y: 320,
+    accentHex: '#f59e0b',
+    category: 'BIBLIOTECA DE LOS REYES · CRÓNICA I',
+    paragraphs: [
+      '«Aquí descansa la memoria del origen: el Rey Donkey Kong levantó este baluarte cuando los videojuegos daban sus primeros pasos analógicos.»',
+    ],
+  },
+  {
+    id: 'exam-castillo-biblioteca-atril-2',
+    areaId: 'castle-biblioteca',
+    label: 'Atril II · El Hangar Estelar',
+    actionLabel: 'Inspeccionar Atril II',
+    x: 390,
+    y: 320,
+    accentHex: '#38bdf8',
+    category: 'BIBLIOTECA DE LOS REYES · CRÓNICA II',
+    paragraphs: [
+      '«En la cima de la fortaleza aguarda la nave insignia de 1978, el primer vehículo estelar capaz de cruzar hacia la década de 1980.»',
+    ],
+  },
+  {
+    id: 'exam-castillo-biblioteca-atril-3',
+    areaId: 'castle-biblioteca',
+    label: 'Atril III · La Sombra de Super KOOPA',
+    actionLabel: 'Inspeccionar Atril III',
+    x: 550,
+    y: 320,
+    accentHex: '#a855f7',
+    category: 'BIBLIOTECA DE LOS REYES · CRÓNICA III',
+    paragraphs: [
+      '«Super KOOPA inoculó filamentos de código oscuro en los engranajes del trono, manipulando los recuerdos del monarca para convertirlo en su carcelero.»',
+    ],
+  },
+  {
+    id: 'exam-castillo-biblioteca-atril-4',
+    areaId: 'castle-biblioteca',
+    label: 'Atril IV · La Purificación del Rey',
+    actionLabel: 'Inspeccionar Atril IV',
+    x: 710,
+    y: 320,
+    accentHex: '#ef4444',
+    category: 'BIBLIOTECA DE LOS REYES · CRÓNICA IV',
+    paragraphs: [
+      '«Solo sobrecargando los acumuladores laterales de la sala del trono se disipará la coraza violeta, dejando al descubierto el Núcleo de Corrupción.»',
+    ],
+  },
+  {
+    id: 'exam-castillo-biblioteca-estanteria',
+    areaId: 'castle-biblioteca',
+    label: 'Gran Estantería Mecánica de los Reyes',
+    actionLabel: 'Examinar Mecanismo Oculto',
+    x: 470,
+    y: 150,
+    accentHex: '#f59e0b',
+    category: 'BIBLIOTECA DE LOS REYES · PASADIZO SECRETO',
+    paragraphs: [
+      'Una majestuosa estantería de roble antiguo con engranajes de bronce incrustados en la pared. Al disponer los 4 fragmentos de la crónica en sus atriles, se deslizará para revelar la subida hacia la Torre del Tiempo.',
+    ],
+  },
+  {
+    id: 'exam-castillo-torre-palanca-izq',
+    areaId: 'castle-torre',
+    label: 'Palanca del Engranaje Mayor',
+    actionLabel: 'Sincronizar Engranaje Izquierdo',
+    x: 260,
+    y: 260,
+    accentHex: '#fbbf24',
+    category: 'TORRE DEL TIEMPO · SINCRONIZACIÓN',
+    paragraphs: [
+      'Palanca de bronce macizo que ajusta la velocidad de rotación de las ruedas dentadas superiores.',
+    ],
+  },
+  {
+    id: 'exam-castillo-torre-palanca-der',
+    areaId: 'castle-torre',
+    label: 'Palanca del Péndulo Boreal',
+    actionLabel: 'Alinear Péndulo Derecho',
+    x: 640,
+    y: 260,
+    accentHex: '#fbbf24',
+    category: 'TORRE DEL TIEMPO · SINCRONIZACIÓN',
+    paragraphs: [
+      'Palanca de contrapeso que alinea la oscilación del péndulo central para desbloquear las puertas de la cumbre.',
+    ],
+  },
+  {
+    id: 'exam-castillo-trono-rey',
+    areaId: 'castle-trono',
+    label: 'Trono Monumental de la Fortaleza',
+    actionLabel: 'Observar Trono',
+    x: 490,
+    y: 180,
+    accentHex: '#ec4899',
+    category: 'SALA DEL TRONO · CORAZÓN DEL REINO',
+    paragraphs: [
+      'El colosal trono de piedra negra donde Donkey Kong reinaba con honor. Encima de él flota el Núcleo Digital de Super KOOPA palpitando con rayos violetas.',
+    ],
+  },
+  {
+    id: 'exam-castillo-nave-invaders',
+    areaId: 'castle-trono',
+    label: 'Nave Insignia de Space Invaders',
+    actionLabel: 'Abordar Nave Espacial [E]',
+    x: 490,
+    y: 80,
+    accentHex: '#22c55e',
+    category: 'HANGAR SECRETO · PUENTE HACIA LOS 80',
+    paragraphs: [
+      '¡La legendaria nave canónica de 1978! Sus turbinas emiten un zumbido cósmico estable y su cabina brilla con fósforo verde. Requiere la Llave Maestra del Hangar entregada por Donkey Kong para despegar rumbo a la Isla de los 80.',
+    ],
+  },
 ];
 
 /* ============================================================================
    6. PERSONAJES ORIGINALES EN INTERIORES, CUEVAS E ISLA 80s
    ============================================================================ */
 export const RPG_SUBAREA_NPCS: RpgSubAreaNpcSpec[] = [
+  {
+    id: 'npc-donkey-kong-freed',
+    areaId: 'castle-trono',
+    name: 'Donkey Kong · Rey de la Fortaleza',
+    role: 'Monarca Restaurado de la Isla del Origen',
+    x: 490,
+    y: 220,
+    facing: 'down',
+    palette: { primary: '#b45309', secondary: '#ef4444', glow: '#fbbf24' },
+    pitch: 0.65,
+  },
   {
     id: 'npc-cronista-orfeo',
     areaId: 'interior-centro-historia',
@@ -1774,6 +2269,61 @@ export const RPG_SUBAREA_NPCS: RpgSubAreaNpcSpec[] = [
     facing: 'down',
     palette: { primary: '#0891b2', secondary: '#fde047', glow: '#22d3ee' },
     pitch: 1.08,
+  },
+  {
+    id: 'npc-centinela-galahad',
+    areaId: 'castle-murallas',
+    name: 'Sir Galahad · Vigía de las Murallas',
+    role: 'Patrón de la Guardia del Castillo',
+    x: 360,
+    y: 320,
+    facing: 'down',
+    palette: { primary: '#6366f1', secondary: '#c084fc', glow: '#a855f7' },
+    pitch: 0.85,
+  },
+  {
+    id: 'npc-cartografo-gunter',
+    areaId: 'castle-laberinto',
+    name: 'Gunter el Cartógrafo',
+    role: 'Aventurero Atrapado en el Laberinto',
+    x: 160,
+    y: 320,
+    facing: 'right',
+    palette: { primary: '#818cf8', secondary: '#f59e0b', glow: '#fbbf24' },
+    pitch: 0.95,
+  },
+  {
+    id: 'npc-ingeniero-volcan',
+    areaId: 'castle-cimientos',
+    name: 'Ingeniero Volcan',
+    role: 'Maestro de la Maquinaria Hidráulica',
+    x: 340,
+    y: 220,
+    facing: 'right',
+    palette: { primary: '#0891b2', secondary: '#06b6d4', glow: '#22d3ee' },
+    pitch: 0.9,
+  },
+  {
+    id: 'npc-archivero-ovidio',
+    areaId: 'castle-biblioteca',
+    name: 'Archivero Ovidio',
+    role: 'Bibliotecario de los Reyes',
+    x: 310,
+    y: 220,
+    facing: 'down',
+    palette: { primary: '#d97706', secondary: '#f59e0b', glow: '#fbbf24' },
+    pitch: 1.02,
+  },
+  {
+    id: 'npc-crono-vigia',
+    areaId: 'castle-torre',
+    name: 'Crono-Vigía',
+    role: 'Maestro Relojero de la Torre del Tiempo',
+    x: 340,
+    y: 320,
+    facing: 'down',
+    palette: { primary: '#ca8a04', secondary: '#fbbf24', glow: '#fde047' },
+    pitch: 0.88,
   },
 ];
 
@@ -2714,9 +3264,7 @@ export const SUB_AREAS: Record<Exclude<RpgAreaId, 'exterior-70s'>, SubAreaSpec> 
     width: 760,
     height: 480,
     walkableBounds: { x: 112, y: 118, w: 536, h: 326 },
-    obstacles: [
-      { id: 'breakout-cab-obs', x: 344, y: 162, w: 72, h: 58 },
-    ],
+    obstacles: [],
     exits: [
       {
         id: 'exit-breakout-to-labyrinth',
@@ -2731,15 +3279,6 @@ export const SUB_AREAS: Record<Exclude<RpgAreaId, 'exterior-70s'>, SubAreaSpec> 
       },
     ],
     decorProps: [
-      {
-        kind: 'breakout-cabinet-1976',
-        x: 344,
-        y: 162,
-        w: 72,
-        h: 68,
-        accentHex: '#f97316',
-        label: 'BREAKOUT 1976',
-      },
       {
         kind: 'temporal-conduit',
         x: 152,
@@ -2758,6 +3297,312 @@ export const SUB_AREAS: Record<Exclude<RpgAreaId, 'exterior-70s'>, SubAreaSpec> 
         accentHex: '#22d3ee',
         label: 'CELOFÁN RGB',
       },
+    ],
+  },
+
+  'castle-murallas': {
+    id: 'castle-murallas',
+    numberLabel: 'ZONA I · LAS MURALLAS DEL DESTIERRO',
+    name: 'Murallas del Destierro · Patio de Armas',
+    subtitle: 'Almenas de basalto milenario azotadas por viento oscuro y centinelas de piedra',
+    accentHex: '#c084fc',
+    floorHex: '#1e1c29',
+    floorGridHex: 'rgba(192, 132, 252, 0.08)',
+    wallHex: '#0f0e17',
+    borderHex: '#c084fc',
+    width: 880,
+    height: 560,
+    walkableBounds: { x: 50, y: 80, w: 780, h: 430 },
+    obstacles: [
+      { id: 'mur-col-w', x: 220, y: 190, w: 56, h: 64 },
+      { id: 'mur-col-e', x: 604, y: 190, w: 56, h: 64 },
+      { id: 'mur-col-sw', x: 220, y: 350, w: 56, h: 64 },
+      { id: 'mur-col-se', x: 604, y: 350, w: 56, h: 64 },
+    ],
+    exits: [
+      {
+        id: 'exit-murallas-to-exterior',
+        label: 'Puente Levadizo · Regreso al Exterior de la Isla',
+        actionLabel: 'Salir al Exterior',
+        x: 440,
+        y: 490,
+        accentHex: '#c084fc',
+        targetArea: 'exterior-70s',
+        returnToSavedExterior: true,
+      },
+      {
+        id: 'exit-murallas-to-laberinto',
+        label: 'Rastrillo Norte · Entrada al Laberinto de las Doce Puertas',
+        actionLabel: 'Entrar al Laberinto',
+        x: 440,
+        y: 120,
+        accentHex: '#818cf8',
+        targetArea: 'castle-laberinto',
+        targetX: 480,
+        targetY: 480,
+      },
+    ],
+    decorProps: [
+      { kind: 'castle-banner', x: 140, y: 130, w: 40, h: 80, accentHex: '#a855f7', label: 'ESTANDARTE OSCURO' },
+      { kind: 'castle-banner', x: 700, y: 130, w: 40, h: 80, accentHex: '#a855f7', label: 'ESTANDARTE OSCURO' },
+      { kind: 'castle-statue', x: 300, y: 120, w: 48, h: 64, accentHex: '#94a3b8', label: 'GUARDIÁN DEL SOL' },
+      { kind: 'castle-statue', x: 532, y: 120, w: 48, h: 64, accentHex: '#94a3b8', label: 'GUARDIÁN DE LA LUNA' },
+      { kind: 'castle-statue', x: 220, y: 190, w: 56, h: 64, accentHex: '#c084fc', label: 'TORREÓN OESTE' },
+      { kind: 'castle-statue', x: 604, y: 190, w: 56, h: 64, accentHex: '#c084fc', label: 'TORREÓN ESTE' },
+      { kind: 'castle-statue', x: 220, y: 350, w: 56, h: 64, accentHex: '#c084fc', label: 'PILAR SUR OESTE' },
+      { kind: 'castle-statue', x: 604, y: 350, w: 56, h: 64, accentHex: '#c084fc', label: 'PILAR SUR ESTE' },
+    ],
+  },
+
+  'castle-laberinto': {
+    id: 'castle-laberinto',
+    numberLabel: 'ZONA II · EL LABERINTO DE LAS DOCE PUERTAS',
+    name: 'Laberinto de las Doce Puertas',
+    subtitle: 'Corredores de piedra tallada, glifos de la edad dorada y atajos mecánicos',
+    accentHex: '#818cf8',
+    floorHex: '#181827',
+    floorGridHex: 'rgba(129, 140, 248, 0.08)',
+    wallHex: '#0c0c16',
+    borderHex: '#818cf8',
+    width: 960,
+    height: 600,
+    walkableBounds: { x: 50, y: 80, w: 860, h: 480 },
+    obstacles: [
+      { id: 'lab-wall-1', x: 220, y: 160, w: 32, h: 220 },
+      { id: 'lab-wall-2', x: 380, y: 260, w: 32, h: 220 },
+      { id: 'lab-wall-3', x: 560, y: 160, w: 32, h: 220 },
+      { id: 'lab-wall-4', x: 720, y: 260, w: 32, h: 220 },
+    ],
+    exits: [
+      {
+        id: 'exit-laberinto-to-murallas',
+        label: 'Rastrillo Sur · Regreso a las Murallas',
+        actionLabel: 'Volver a las Murallas',
+        x: 480,
+        y: 530,
+        accentHex: '#c084fc',
+        targetArea: 'castle-murallas',
+        targetX: 440,
+        targetY: 160,
+      },
+      {
+        id: 'exit-laberinto-to-cimientos',
+        label: 'Escalera Espiral · Descenso a los Cimientos del Reino',
+        actionLabel: 'Bajar a los Cimientos',
+        x: 820,
+        y: 130,
+        accentHex: '#06b6d4',
+        targetArea: 'castle-cimientos',
+        targetX: 460,
+        targetY: 480,
+      },
+    ],
+    decorProps: [
+      { kind: 'labyrinth-wall', x: 220, y: 160, w: 32, h: 220, accentHex: '#818cf8', label: 'MURO DE PIEDRA I' },
+      { kind: 'labyrinth-wall', x: 380, y: 260, w: 32, h: 220, accentHex: '#818cf8', label: 'MURO DE PIEDRA II' },
+      { kind: 'labyrinth-wall', x: 560, y: 160, w: 32, h: 220, accentHex: '#818cf8', label: 'MURO DE PIEDRA III' },
+      { kind: 'labyrinth-wall', x: 720, y: 260, w: 32, h: 220, accentHex: '#818cf8', label: 'MURO DE PIEDRA IV' },
+      { kind: 'castle-statue', x: 120, y: 140, w: 48, h: 64, accentHex: '#818cf8', label: 'GLIFO ALFA' },
+      { kind: 'castle-statue', x: 480, y: 140, w: 48, h: 64, accentHex: '#818cf8', label: 'GLIFO OMEGA' },
+      { kind: 'temporal-conduit', x: 300, y: 130, w: 60, h: 40, accentHex: '#818cf8', label: 'CONDUCCIÓN 1971' },
+      { kind: 'temporal-conduit', x: 640, y: 130, w: 60, h: 40, accentHex: '#818cf8', label: 'CONDUCCIÓN 1978' },
+    ],
+  },
+
+  'castle-cimientos': {
+    id: 'castle-cimientos',
+    numberLabel: 'ZONA III · LOS CIMIENTOS DEL REINO',
+    name: 'Cimientos del Reino · Canal Hidráulico',
+    subtitle: 'Maquinaria de vapor, acueductos subterráneos y pistones del gran montacargas',
+    accentHex: '#06b6d4',
+    floorHex: '#0c1d28',
+    floorGridHex: 'rgba(6, 182, 212, 0.08)',
+    wallHex: '#050f16',
+    borderHex: '#06b6d4',
+    width: 920,
+    height: 580,
+    walkableBounds: { x: 50, y: 80, w: 820, h: 460 },
+    obstacles: [
+      { id: 'cim-canal-w', x: 150, y: 290, w: 220, h: 48 },
+      { id: 'cim-canal-e', x: 550, y: 290, w: 220, h: 48 },
+      { id: 'cim-piston', x: 430, y: 150, w: 60, h: 60 },
+    ],
+    exits: [
+      {
+        id: 'exit-cimientos-to-laberinto',
+        label: 'Escalera Espiral · Regreso al Laberinto',
+        actionLabel: 'Subir al Laberinto',
+        x: 460,
+        y: 510,
+        accentHex: '#818cf8',
+        targetArea: 'castle-laberinto',
+        targetX: 820,
+        targetY: 170,
+      },
+      {
+        id: 'exit-cimientos-to-biblioteca',
+        label: 'Montacargas Hidráulico · Ascenso a la Gran Biblioteca',
+        actionLabel: 'Subir a la Biblioteca',
+        x: 460,
+        y: 120,
+        accentHex: '#f59e0b',
+        targetArea: 'castle-biblioteca',
+        targetX: 470,
+        targetY: 480,
+      },
+    ],
+    decorProps: [
+      { kind: 'castle-valve', x: 220, y: 230, w: 48, h: 54, accentHex: '#06b6d4', label: 'VÁLVULA [A]' },
+      { kind: 'castle-valve', x: 460, y: 230, w: 48, h: 54, accentHex: '#06b6d4', label: 'VÁLVULA [B]' },
+      { kind: 'castle-valve', x: 700, y: 230, w: 48, h: 54, accentHex: '#06b6d4', label: 'VÁLVULA [C]' },
+      { kind: 'underground-pool', x: 150, y: 290, w: 220, h: 48, accentHex: '#06b6d4' },
+      { kind: 'underground-pool', x: 550, y: 290, w: 220, h: 48, accentHex: '#06b6d4' },
+      { kind: 'temporal-conduit', x: 430, y: 150, w: 60, h: 60, accentHex: '#06b6d4', label: 'PISTÓN HIDRÁULICO' },
+    ],
+  },
+
+  'castle-biblioteca': {
+    id: 'castle-biblioteca',
+    numberLabel: 'ZONA IV · LA BIBLIOTECA DE LOS REYES',
+    name: 'Gran Biblioteca de los Reyes',
+    subtitle: 'Crónicas fundacionales, manuscritos del origen y estanterías mecánicas',
+    accentHex: '#f59e0b',
+    floorHex: '#221912',
+    floorGridHex: 'rgba(245, 158, 11, 0.08)',
+    wallHex: '#120d09',
+    borderHex: '#f59e0b',
+    width: 940,
+    height: 600,
+    walkableBounds: { x: 50, y: 80, w: 840, h: 480 },
+    obstacles: [
+      { id: 'bib-shelf-1', x: 130, y: 170, w: 100, h: 50 },
+      { id: 'bib-shelf-2', x: 710, y: 170, w: 100, h: 50 },
+      { id: 'bib-shelf-secret', x: 420, y: 120, w: 100, h: 54 },
+    ],
+    exits: [
+      {
+        id: 'exit-biblioteca-to-cimientos',
+        label: 'Montacargas Hidráulico · Regreso a los Cimientos',
+        actionLabel: 'Bajar a los Cimientos',
+        x: 470,
+        y: 530,
+        accentHex: '#06b6d4',
+        targetArea: 'castle-cimientos',
+        targetX: 460,
+        targetY: 160,
+      },
+      {
+        id: 'exit-biblioteca-to-torre',
+        label: 'Pasadizo Secreto tras la Estantería · Ascenso a la Torre del Tiempo',
+        actionLabel: 'Subir a la Torre del Tiempo',
+        x: 470,
+        y: 120,
+        accentHex: '#fbbf24',
+        targetArea: 'castle-torre',
+        targetX: 450,
+        targetY: 480,
+      },
+    ],
+    decorProps: [
+      { kind: 'castle-lectern', x: 230, y: 320, w: 44, h: 48, accentHex: '#f59e0b', label: 'ATRIL I' },
+      { kind: 'castle-lectern', x: 390, y: 320, w: 44, h: 48, accentHex: '#38bdf8', label: 'ATRIL II' },
+      { kind: 'castle-lectern', x: 550, y: 320, w: 44, h: 48, accentHex: '#a855f7', label: 'ATRIL III' },
+      { kind: 'castle-lectern', x: 710, y: 320, w: 44, h: 48, accentHex: '#ef4444', label: 'ATRIL IV' },
+      { kind: 'archive-shelf', x: 130, y: 170, w: 100, h: 50, accentHex: '#f59e0b', label: 'TOMOS 1971-1975' },
+      { kind: 'archive-shelf', x: 710, y: 170, w: 100, h: 50, accentHex: '#f59e0b', label: 'TOMOS 1976-1979' },
+      { kind: 'archive-shelf', x: 420, y: 120, w: 100, h: 54, accentHex: '#fde047', label: 'ESTANTERÍA MECÁNICA' },
+    ],
+  },
+
+  'castle-torre': {
+    id: 'castle-torre',
+    numberLabel: 'ZONA V · LA TORRE DEL TIEMPO',
+    name: 'La Torre del Tiempo',
+    subtitle: 'Engranajes colosales de latón, péndulos oscilantes y la puerta hacia el cielo',
+    accentHex: '#fbbf24',
+    floorHex: '#221c12',
+    floorGridHex: 'rgba(251, 191, 36, 0.08)',
+    wallHex: '#120e09',
+    borderHex: '#fbbf24',
+    width: 900,
+    height: 600,
+    walkableBounds: { x: 50, y: 80, w: 800, h: 480 },
+    obstacles: [
+      { id: 'tor-gear-left', x: 180, y: 220, w: 76, h: 76 },
+      { id: 'tor-gear-right', x: 644, y: 220, w: 76, h: 76 },
+      { id: 'tor-central-column', x: 420, y: 230, w: 60, h: 60 },
+    ],
+    exits: [
+      {
+        id: 'exit-torre-to-biblioteca',
+        label: 'Pasadizo de Escaleras · Regreso a la Biblioteca',
+        actionLabel: 'Bajar a la Biblioteca',
+        x: 450,
+        y: 530,
+        accentHex: '#f59e0b',
+        targetArea: 'castle-biblioteca',
+        targetX: 470,
+        targetY: 170,
+      },
+      {
+        id: 'exit-torre-to-trono',
+        label: 'Portal Maestro del Reloj · Entrada a la Sala del Trono',
+        actionLabel: 'Entrar a la Sala del Trono',
+        x: 450,
+        y: 120,
+        accentHex: '#ec4899',
+        targetArea: 'castle-trono',
+        targetX: 490,
+        targetY: 510,
+      },
+    ],
+    decorProps: [
+      { kind: 'castle-gear', x: 180, y: 220, w: 76, h: 76, accentHex: '#fbbf24', label: 'ENGRANAJE I' },
+      { kind: 'castle-gear', x: 644, y: 220, w: 76, h: 76, accentHex: '#fbbf24', label: 'ENGRANAJE II' },
+      { kind: 'castle-pendulum', x: 420, y: 130, w: 60, h: 90, accentHex: '#fde047', label: 'PÉNDULO BOREAL' },
+      { kind: 'temporal-conduit', x: 130, y: 140, w: 60, h: 40, accentHex: '#fbbf24', label: 'RELOJ MASTER' },
+      { kind: 'temporal-conduit', x: 710, y: 140, w: 60, h: 40, accentHex: '#fbbf24', label: 'ESCAPE DE ANCLA' },
+    ],
+  },
+
+  'castle-trono': {
+    id: 'castle-trono',
+    numberLabel: 'ZONA VI · LA SALA DEL TRONO DEL REY CORRUPTO',
+    name: 'Sala del Trono del Rey Corrupto',
+    subtitle: 'El santuario corrompido de Donkey Kong, el Núcleo de Super KOOPA y el Hangar Estelar',
+    accentHex: '#ec4899',
+    floorHex: '#1d122b',
+    floorGridHex: 'rgba(236, 72, 153, 0.09)',
+    wallHex: '#0f0917',
+    borderHex: '#a855f7',
+    width: 980,
+    height: 640,
+    walkableBounds: { x: 50, y: 80, w: 880, h: 510 },
+    obstacles: [
+      { id: 'tro-pillar-w1', x: 200, y: 230, w: 48, h: 48 },
+      { id: 'tro-pillar-w2', x: 200, y: 390, w: 48, h: 48 },
+      { id: 'tro-pillar-e1', x: 732, y: 230, w: 48, h: 48 },
+      { id: 'tro-pillar-e2', x: 732, y: 390, w: 48, h: 48 },
+    ],
+    exits: [
+      {
+        id: 'exit-trono-to-torre',
+        label: 'Portal Maestro · Regreso a la Torre del Tiempo',
+        actionLabel: 'Volver a la Torre',
+        x: 490,
+        y: 560,
+        accentHex: '#fbbf24',
+        targetArea: 'castle-torre',
+        targetX: 450,
+        targetY: 160,
+      },
+    ],
+    decorProps: [
+      { kind: 'castle-throne', x: 450, y: 140, w: 80, h: 80, accentHex: '#ec4899', label: 'TRONO CORRUPTO' },
+      { kind: 'corruption-core', x: 466, y: 100, w: 48, h: 48, accentHex: '#a855f7', label: 'NÚCLEO DIGITAL' },
+      { kind: 'space-invaders-ship', x: 440, y: 40, w: 100, h: 64, accentHex: '#22c55e', label: 'NAVE 1978' },
+      { kind: 'castle-banner', x: 120, y: 110, w: 40, h: 80, accentHex: '#ec4899', label: 'BLASÓN CORROMPIDO' },
+      { kind: 'castle-banner', x: 820, y: 110, w: 40, h: 80, accentHex: '#ec4899', label: 'BLASÓN CORROMPIDO' },
     ],
   },
 };
@@ -3152,14 +3997,21 @@ export function isWalkableInSubArea(
   px: number,
   py: number,
   calmedCreatureIds: string[] = [],
-  allUnlocked = false
+  allUnlocked = false,
+  solvedPuzzleIds: string[] = []
 ): boolean {
   const b = area.walkableBounds;
-  if (px < b.x + 14 || px > b.x + b.w - 14 || py < b.y + 14 || py > b.y + b.h - 14) {
+  if (px < b.x + 4 || px > b.x + b.w - 4 || py < b.y + 4 || py > b.y + b.h - 4) {
     return false;
   }
   for (const obs of area.obstacles) {
-    if (doesCircleCollideRect(px, py, 13, obs)) {
+    if (
+      obs.id === 'bib-shelf-secret' &&
+      (allUnlocked || solvedPuzzleIds.includes('puzzle-cronica-reyes'))
+    ) {
+      continue;
+    }
+    if (doesCircleCollideRect(px, py, 10, obs)) {
       return false;
     }
   }
@@ -3169,7 +4021,7 @@ export function isWalkableInSubArea(
         cr.areaId === area.id &&
         cr.blocksPassageRect &&
         !calmedCreatureIds.includes(cr.id) &&
-        doesCircleCollideRect(px, py, 13, cr.blocksPassageRect)
+        doesCircleCollideRect(px, py, 10, cr.blocksPassageRect)
       ) {
         return false;
       }

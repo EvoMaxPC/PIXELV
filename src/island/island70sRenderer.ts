@@ -12,6 +12,7 @@
  */
 
 import { PixelverseProgressState } from '../memories/progressionState';
+import type { AvatarAppearance } from '../avatar/avatarOptions';
 import {
   AnomalyPortalSpec,
   BROKEN_RELAY_MECHANISM,
@@ -38,6 +39,10 @@ import {
   ISLAND_DIAMONDS,
   ISLAND_ECHOES,
   ISLAND_KEY_COORDS,
+  ISLAND_ROUTE_RAILS,
+  NORTH_ARCADE_LAYOUT,
+  VOLCANIC_ARCADE_LAYOUT,
+  VOLCANIC_GUARD_ID,
   ISLAND_NPCS,
   IslandNpcSpec,
   ISLAND_SWITCHES,
@@ -1003,6 +1008,73 @@ export function drawGuardianCreatureSprite(
  * - Botas de explorador con suela y puntera en relieve.
  * - Ciclo de 4 fases de animación de marcha con balanceo de brazos y zancada natural.
  */
+function drawAvatarOutfit(ctx: CanvasRenderingContext2D, id: string): void {
+  const accents: Record<string, string> = {
+    rocker: '#f05b50', mage: '#bf91ff', indie: '#d7a77b', hippie: '#f2bd4b', punk: '#f34b75',
+    ninja: '#a68bff', knight: '#c2d0da', explorer: '#91b978', pirate: '#da5149', scientist: '#f0eee3',
+    athlete: '#57d2e1', cowboy: '#cf843a', cyberpunk: '#ff4bd8', artist: '#f0a638', detective: '#a9b5c9',
+    space: '#66d9ed', tribal: '#da8a50', vintage: '#e1cb91', inventor: '#ce9157',
+  };
+  const a = accents[id] ?? '#f5d675';
+  ctx.save();
+  switch (id) {
+    case 'rocker': ctx.fillStyle = '#20232d'; ctx.fillRect(-9,-18,18,11); ctx.fillStyle=a; ctx.fillRect(-2,-16,2,2);ctx.fillRect(0,-14,2,2);ctx.fillRect(-2,-12,2,2);for(let x=-7;x<=7;x+=7)ctx.fillRect(x,-17,2,1);break;
+    case 'mage': ctx.fillStyle=a;ctx.fillRect(-10,-9,20,7);ctx.fillRect(-5,-14,10,2);ctx.fillRect(-1,-17,2,9);ctx.fillStyle='#111827';ctx.fillRect(-10,-38,20,3);ctx.fillRect(-6,-44,12,7);ctx.fillRect(-3,-48,6,5);break;
+    case 'indie': ctx.fillStyle='#e7d5bd';ctx.fillRect(-7,-17,14,10);ctx.fillStyle=a;ctx.fillRect(-7,-17,3,9);ctx.fillRect(4,-17,3,9);ctx.fillRect(-2,-15,4,2);break;
+    case 'hippie': ctx.fillStyle=a;ctx.fillRect(-8,-16,16,2);ctx.fillRect(-9,-10,18,2);ctx.fillStyle='#ed7464';ctx.fillRect(-6,-13,3,2);ctx.fillStyle='#6fbd76';ctx.fillRect(3,-15,3,2);break;
+    case 'punk': ctx.fillStyle='#171b27';ctx.fillRect(-10,-19,20,10);ctx.fillStyle=a;ctx.fillRect(-9,-18,4,2);ctx.fillRect(5,-18,4,2);for(let x=-7;x<9;x+=7)ctx.fillRect(x,-15,2,2);ctx.fillStyle='#d7dde4';ctx.fillRect(4,-12,4,1);break;
+    case 'ninja': ctx.fillStyle='#161627';ctx.fillRect(-9,-17,18,12);ctx.fillStyle=a;ctx.fillRect(-8,-20,16,2);ctx.fillRect(-8,-10,16,2);ctx.fillStyle='#eee6d2';ctx.fillRect(-5,-23,10,2);break;
+    case 'knight': ctx.fillStyle='#526474';ctx.fillRect(-12,-18,7,6);ctx.fillRect(5,-18,7,6);ctx.fillStyle='#ccd6dd';ctx.fillRect(-10,-17,5,4);ctx.fillRect(5,-17,5,4);ctx.fillStyle=a;ctx.fillRect(-2,-15,4,4);break;
+    case 'explorer': ctx.fillStyle='#77502f';ctx.fillRect(-7,-17,2,11);ctx.fillRect(5,-17,2,11);ctx.fillStyle=a;ctx.fillRect(-6,-15,12,2);ctx.fillRect(-6,-9,12,2);break;
+    case 'pirate': ctx.fillStyle=a;ctx.fillRect(-9,-17,18,3);ctx.fillRect(-2,-14,4,7);ctx.fillStyle='#15151a';ctx.fillRect(-11,-37,22,3);ctx.fillRect(-7,-40,14,4);break;
+    case 'scientist': ctx.fillStyle='#f4f1e8';ctx.fillRect(-8,-17,4,11);ctx.fillRect(4,-17,4,11);ctx.fillStyle=a;ctx.fillRect(-1,-17,2,7);ctx.fillStyle='#65b9b5';ctx.fillRect(4,-11,4,3);break;
+    case 'athlete': ctx.fillStyle=a;ctx.fillRect(-9,-17,2,10);ctx.fillRect(7,-17,2,10);ctx.fillStyle='#f7f4e6';ctx.fillRect(-6,-17,2,10);ctx.fillRect(4,-17,2,10);break;
+    case 'cowboy': ctx.fillStyle='#75401f';ctx.fillRect(-7,-16,14,8);ctx.fillStyle=a;ctx.fillRect(-8,-18,4,10);ctx.fillRect(4,-18,4,10);ctx.fillStyle='#cf4840';ctx.fillRect(-5,-15,10,3);ctx.fillStyle='#111827';ctx.fillRect(-10,-35,20,2);ctx.fillRect(-6,-40,12,6);break;
+    case 'cyberpunk': ctx.fillStyle='#16182a';ctx.fillRect(-9,-18,18,12);ctx.fillStyle=a;ctx.fillRect(-8,-17,2,9);ctx.fillRect(6,-17,2,9);ctx.fillRect(-4,-12,8,1);ctx.fillStyle='#64f6ed';ctx.fillRect(-2,-16,4,3);break;
+    case 'artist': ctx.fillStyle='#ded4bd';ctx.fillRect(-8,-17,16,12);ctx.fillStyle='#e75152';ctx.fillRect(-6,-15,3,2);ctx.fillStyle='#397fc0';ctx.fillRect(2,-13,3,2);ctx.fillStyle=a;ctx.fillRect(-8,-18,16,2);break;
+    case 'detective': ctx.fillStyle='#263247';ctx.fillRect(-10,-18,20,14);ctx.fillStyle='#ddd6c4';ctx.fillRect(-3,-17,6,3);ctx.fillStyle=a;ctx.fillRect(-1,-14,2,7);ctx.fillStyle='#171923';ctx.fillRect(-12,-36,24,3);ctx.fillRect(-8,-39,16,4);break;
+    case 'space': ctx.fillStyle='#dfe7e4';ctx.fillRect(-10,-19,20,14);ctx.fillStyle=a;ctx.fillRect(-8,-17,2,10);ctx.fillRect(6,-17,2,10);ctx.fillStyle='#df6652';ctx.fillRect(-8,-12,4,3);ctx.fillStyle='#53687e';ctx.fillRect(-12,-17,3,9);break;
+    case 'tribal': ctx.fillStyle='#8e5336';ctx.fillRect(-10,-18,20,5);ctx.fillRect(-8,-13,16,2);ctx.fillStyle=a;for(let x=-8;x<=8;x+=4)ctx.fillRect(x,-21,2,5);break;
+    case 'vintage': ctx.fillStyle='#eee6d0';ctx.fillRect(-7,-17,14,10);ctx.fillStyle=a;ctx.fillRect(-5,-16,10,2);ctx.fillRect(-1,-14,2,6);ctx.fillStyle='#f5d675';ctx.fillRect(4,-10,2,2);break;
+    case 'inventor': ctx.fillStyle='#975e35';ctx.fillRect(-8,-16,16,10);ctx.fillStyle=a;ctx.fillRect(-6,-15,12,2);ctx.fillStyle='#e7c96a';ctx.fillRect(-3,-11,6,4);break;
+  }
+  ctx.restore();
+}
+
+function drawAvatarTransformation(ctx: CanvasRenderingContext2D, id: string, t: number): void {
+  ctx.save();
+  switch (id) {
+    case 'monster': ctx.fillStyle='#111827';ctx.fillRect(-11,-36,5,8);ctx.fillRect(6,-36,5,8);ctx.fillStyle='#f4d469';ctx.fillRect(-6,-22,3,2);ctx.fillRect(3,-22,3,2);ctx.fillRect(-11,-18,3,4);ctx.fillRect(8,-18,3,4);break;
+    case 'frankenstein': ctx.fillStyle='#101827';ctx.fillRect(-11,-36,22,13);ctx.fillStyle='#8fbd75';ctx.fillRect(-8,-34,16,9);ctx.fillStyle='#f1dfbf';ctx.fillRect(-10,-29,20,1);ctx.fillRect(-8,-26,2,1);ctx.fillRect(6,-26,2,1);ctx.fillStyle='#f2d05d';ctx.fillRect(-13,-29,2,4);ctx.fillRect(11,-29,2,4);break;
+    case 'mummy': ctx.fillStyle='#c4b28b';ctx.fillRect(-9,-35,18,17);ctx.fillRect(-10,-17,20,13);ctx.fillStyle='#e5d4a8';for(let y=-33;y<-17;y+=4)ctx.fillRect(-9,y,18,2);for(let y=-16;y<-5;y+=4)ctx.fillRect(-10,y,20,2);ctx.fillStyle='#111827';ctx.fillRect(-6,-25,4,2);ctx.fillRect(2,-25,4,2);break;
+    case 'vampire': ctx.fillStyle='#f0dde5';ctx.fillRect(-8,-28,16,11);ctx.fillStyle='#c53e5d';ctx.fillRect(-8,-17,4,12);ctx.fillRect(4,-17,4,12);ctx.fillRect(-11,-17,4,5);ctx.fillRect(7,-17,4,5);ctx.fillStyle='#171321';ctx.fillRect(-6,-23,3,3);ctx.fillRect(3,-23,3,3);ctx.fillStyle='#fff2dc';ctx.fillRect(-2,-19,2,3);ctx.fillRect(1,-19,2,3);break;
+    case 'werewolf': ctx.fillStyle='#342922';ctx.fillRect(-11,-37,8,11);ctx.fillRect(3,-37,8,11);ctx.fillStyle='#bd916d';ctx.fillRect(-8,-27,16,10);ctx.fillRect(-10,-19,3,3);ctx.fillRect(7,-19,3,3);ctx.fillStyle='#111827';ctx.fillRect(-5,-23,3,2);ctx.fillRect(2,-23,3,2);ctx.fillRect(-2,-19,4,2);ctx.fillStyle='#f4e7d2';ctx.fillRect(-4,-18,2,3);ctx.fillRect(2,-18,2,3);break;
+    case 'skeleton': ctx.fillStyle='#f0e9d5';ctx.fillRect(-8,-35,16,17);ctx.fillRect(-10,-16,20,9);ctx.fillStyle='#111521';ctx.fillRect(-6,-27,4,5);ctx.fillRect(2,-27,4,5);ctx.fillRect(-3,-20,6,2);ctx.fillStyle='#f0e9d5';ctx.fillRect(-1,-16,2,9);ctx.fillRect(-8,-14,16,2);for(let x=-7;x<=5;x+=4)ctx.fillRect(x,-12,2,5);break;
+    case 'alien': ctx.fillStyle='#75df91';ctx.fillRect(-10,-31,20,14);ctx.fillStyle='#12252b';ctx.fillRect(-6,-27,5,5);ctx.fillRect(1,-27,5,5);ctx.fillStyle='#b9ffca';ctx.fillRect(-5,-26,2,2);ctx.fillRect(2,-26,2,2);ctx.fillStyle='#75df91';ctx.fillRect(-7,-37,2,7);ctx.fillRect(5,-37,2,7);ctx.fillRect(-10,-39,7,2);ctx.fillRect(3,-39,7,2);break;
+    case 'ghost': ctx.globalAlpha=.8;ctx.fillStyle='#b9edf0';ctx.fillRect(-10,-32,20,31);ctx.fillRect(-7,-36,14,5);ctx.fillStyle='#293b62';ctx.fillRect(-6,-25,3,4);ctx.fillRect(3,-25,3,4);ctx.fillRect(-2,-17,4,2);ctx.fillStyle='#b9edf0';ctx.fillRect(-10,-2,5,5);ctx.fillRect(-2,-4,5,7);ctx.fillRect(6,-2,4,5);break;
+    case 'demon': ctx.fillStyle='#711e35';ctx.fillRect(-11,-37,7,9);ctx.fillRect(4,-37,7,9);ctx.fillStyle='#ed594b';ctx.fillRect(-9,-34,18,15);ctx.fillRect(-9,-18,18,12);ctx.fillStyle='#fff0a3';ctx.fillRect(-6,-26,4,2);ctx.fillRect(2,-26,4,2);ctx.fillStyle='#f5cf53';ctx.fillRect(-3,-20,2,3);ctx.fillRect(1,-20,2,3);break;
+    case 'glitch': { const n=Math.floor(t*14)%3-1;ctx.globalAlpha=.8;ctx.fillStyle='#ff4bd8';ctx.fillRect(-13+n,-32,4,5);ctx.fillRect(8-n,-22,5,4);ctx.fillStyle='#47f5ed';ctx.fillRect(9-n,-37,4,6);ctx.fillRect(-13+n,-12,4,5);ctx.fillStyle='#161b34';ctx.fillRect(-7+n,-25,4,3);ctx.fillRect(3-n,-25,4,3);break; }
+  }
+  ctx.restore();
+}
+
+function drawAvatarAccessories(ctx: CanvasRenderingContext2D, accessories: string[], facing: FacingDirection): void {
+  const has=(id:string)=>accessories.includes(id);ctx.save();
+  if(has('cape')){ctx.fillStyle='#080d16';ctx.fillRect(-12,-17,5,16);ctx.fillRect(7,-17,5,16);ctx.fillStyle='#b83145';ctx.fillRect(-11,-16,3,13);ctx.fillRect(8,-16,3,13);ctx.fillStyle='#f1cc65';ctx.fillRect(-2,-17,4,3);}
+  if(has('backpack')){ctx.fillStyle='#080d16';ctx.fillRect(-13,-18,6,12);ctx.fillStyle='#8c5835';ctx.fillRect(-12,-17,4,10);ctx.fillStyle='#edc45d';ctx.fillRect(-11,-14,2,2);}
+  if(has('hat')){ctx.fillStyle='#15141a';ctx.fillRect(-14,-37,28,3);ctx.fillRect(-8,-43,16,7);ctx.fillStyle='#ad773a';ctx.fillRect(-9,-39,18,2);}
+  if(has('cap')){ctx.fillStyle='#111725';ctx.fillRect(-10,-38,20,5);ctx.fillRect(-8,-41,16,4);ctx.fillStyle='#d77745';ctx.fillRect(-1,-40,5,2);}
+  if(has('bandana')){ctx.fillStyle='#bd354b';ctx.fillRect(-10,-35,20,3);ctx.fillRect(7,-33,6,3);ctx.fillRect(10,-30,3,4);}
+  if(has('headphones')){ctx.fillStyle='#161c2a';ctx.fillRect(-12,-35,3,12);ctx.fillRect(9,-35,3,12);ctx.fillRect(-9,-39,18,3);ctx.fillStyle='#5bdbe0';ctx.fillRect(-12,-29,4,5);ctx.fillRect(8,-29,4,5);}
+  if(facing!=='up'){
+    if(has('glasses')){ctx.fillStyle='#111827';ctx.fillRect(-8,-24,7,6);ctx.fillRect(1,-24,7,6);ctx.fillRect(-1,-22,2,2);ctx.fillStyle='#86e6ef';ctx.fillRect(-6,-23,3,2);ctx.fillRect(2,-23,3,2);}
+    if(has('mask')){ctx.fillStyle='#111827';ctx.fillRect(-7,-19,14,5);ctx.fillStyle='#a9bacb';ctx.fillRect(-6,-18,12,3);}
+    if(has('scarf')){ctx.fillStyle='#d9503d';ctx.fillRect(-10,-18,20,4);ctx.fillRect(5,-15,4,9);}
+    if(has('earrings')){ctx.fillStyle='#f7d45b';ctx.fillRect(-10,-21,2,3);ctx.fillRect(8,-21,2,3);}
+  }
+  ctx.restore();
+}
+
 export function drawPixelAvatar4Dir(
   ctx: CanvasRenderingContext2D,
   ax: number,
@@ -1019,8 +1091,29 @@ export function drawPixelAvatar4Dir(
     equippedCosmetic?: string | null;
     lanternActive?: boolean;
     interactAnim?: number;
+    appearance?: AvatarAppearance;
   }
 ): void {
+  const appearance = opts?.appearance;
+  const transformation = appearance?.transformationId;
+  if (transformation === 'frankenstein') skin = '#8fbd75';
+  else if (transformation === 'mummy') skin = '#d9c79c';
+  else if (transformation === 'vampire') skin = '#ead9df';
+  else if (transformation === 'werewolf') skin = '#a87955';
+  else if (transformation === 'skeleton') skin = '#e7dfc8';
+  else if (transformation === 'alien') skin = '#75df91';
+  else if (transformation === 'ghost') skin = '#b9edf0';
+  else if (transformation === 'demon') skin = '#d94445';
+  else if (transformation === 'monster') skin = '#76bd69';
+  else if (transformation === 'glitch') skin = '#65d7c8';
+
+  if (transformation === 'skeleton') {
+    hair = '#eee5cf';
+    shirt = '#e8dfc9';
+  } else if (transformation === 'mummy') {
+    hair = '#b9a67c';
+    shirt = '#d8c69a';
+  }
   const reducedMotion = Boolean(opts?.reducedMotion);
   const animT = reducedMotion ? 0 : t;
   const stepPhase = walking ? Math.floor(animT * (sprinting ? 11 : 7.5)) % 4 : 0;
@@ -1088,10 +1181,10 @@ export function drawPixelAvatar4Dir(
     ctx.fillRect(2, -6 + rStride, 5, 4);
 
     // Botas con suela y puntera
-    ctx.fillStyle = '#334155';
+    ctx.fillStyle = appearance?.bootColor ?? '#334155';
     ctx.fillRect(-7, -2 + lStride, 5, 4);
     ctx.fillRect(2, -2 + rStride, 5, 4);
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = appearance?.bootColor ? '#f1d7a1' : '#64748b';
     ctx.fillRect(-6, -1 + lStride, 3, 2);
     ctx.fillRect(3, -1 + rStride, 3, 2);
   } else {
@@ -1103,10 +1196,10 @@ export function drawPixelAvatar4Dir(
     ctx.fillRect(-5 + stride, -6, 5, 4);
     ctx.fillRect(-stride, -6, 5, 4);
 
-    ctx.fillStyle = '#334155';
+    ctx.fillStyle = appearance?.bootColor ?? '#334155';
     ctx.fillRect(-5 + stride, -2, 5, 4);
     ctx.fillRect(-stride, -2, 5, 4);
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = appearance?.bootColor ? '#f1d7a1' : '#64748b';
     ctx.fillRect(-4 + stride, -1, 3, 2);
     ctx.fillRect(1 - stride, -1, 3, 2);
   }
@@ -1325,6 +1418,10 @@ export function drawPixelAvatar4Dir(
     ctx.fillRect(-1, -38, 2, 2);
   }
 
+  if (appearance && !transformation) drawAvatarOutfit(ctx, appearance.outfitId);
+  if (transformation) drawAvatarTransformation(ctx, transformation, t);
+  if (appearance?.accessories.length) drawAvatarAccessories(ctx, appearance.accessories, facingDir);
+
   ctx.restore();
 }
 
@@ -1535,6 +1632,220 @@ function drawSpaceInvaders1978CabinetWorld(
   ctx.restore();
 }
 
+type NorthArcadeId = 'breakout' | 'asteroids' | 'seaWolf' | 'tank' | 'lunarLander';
+
+/** Rutas legibles y pequeñas plazas temáticas del cruce septentrional. */
+function drawNorthernArcadeDistrict(ctx: CanvasRenderingContext2D, elapsed: number): void {
+  const { junction: j, arcades: a } = NORTH_ARCADE_LAYOUT;
+  const road = (x: number, y: number, w: number, h: number) => {
+    ctx.fillStyle = '#171b22'; ctx.fillRect(x - 4, y - 4, w + 8, h + 8);
+    ctx.fillStyle = '#687078'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#89908e'; ctx.fillRect(x + 3, y + 3, w - 6, h - 6);
+    ctx.fillStyle = '#59625f';
+    for (let tx = x + 8; tx < x + w - 4; tx += 24) ctx.fillRect(tx, y + Math.floor(h / 2), 10, 2);
+    for (let ty = y + 8; ty < y + h - 4; ty += 24) ctx.fillRect(x + Math.floor(w / 2), ty, 2, 10);
+  };
+  road(1896, -552, 112, 232);
+  road(1896, -176, 112, 336);
+  road(2032, -296, 256, 112);
+  road(1568, -296, 304, 112);
+  ctx.fillStyle = '#342c25'; ctx.fillRect(j.x - 80, j.y - 80, 160, 160);
+  ctx.fillStyle = '#a88955'; ctx.fillRect(j.x - 76, j.y - 76, 152, 152);
+  ctx.fillStyle = '#686d69'; ctx.fillRect(j.x - 68, j.y - 68, 136, 136);
+  ctx.fillStyle = '#9b8a64'; ctx.fillRect(j.x - 58, j.y - 58, 116, 116);
+  ctx.fillStyle = '#4a514d';
+  for (let x = j.x - 52; x <= j.x + 44; x += 24) {
+    ctx.fillRect(x, j.y - 44, 16, 2); ctx.fillRect(x, j.y + 42, 16, 2);
+  }
+
+  // Cuatro pequeñas áreas de juego a los extremos de los caminos.
+  const alcove = (x: number, y: number, fill: string, edge: string) => {
+    ctx.fillStyle = '#171a1c'; ctx.fillRect(x - 42, y - 28, 84, 56);
+    ctx.fillStyle = edge; ctx.fillRect(x - 38, y - 24, 76, 48);
+    ctx.fillStyle = fill; ctx.fillRect(x - 34, y - 20, 68, 40);
+  };
+  alcove(a.seaWolf.x, a.seaWolf.y, '#2d7883', '#a5d6c7');
+  for (let i = 0; i < 4; i++) {
+    const wave = Math.round(Math.sin(elapsed * 2 + i) * 2);
+    ctx.fillStyle = i % 2 ? '#5dc1c1' : '#d3e9bc';
+    ctx.fillRect(a.seaWolf.x - 30 + i * 18, a.seaWolf.y + 13 + wave, 10, 2);
+  }
+  alcove(a.tank.x, a.tank.y, '#745b39', '#d6bd7c');
+  ctx.fillStyle = '#3c4633';
+  for (let i = 0; i < 3; i++) {
+    const ox = a.tank.x - 24 + i * 22;
+    ctx.fillRect(ox, a.tank.y - 13, 12, 3); ctx.fillRect(ox + 4, a.tank.y + 7, 16, 3);
+  }
+  alcove(a.lunarLander.x, a.lunarLander.y, '#777b7d', '#c5c2a8');
+  ctx.fillStyle = '#d7d1b1';
+  for (const [dx, dy, r] of [[-22, -8, 6], [8, 8, 9], [23, -10, 4]] as const) {
+    ctx.fillRect(a.lunarLander.x + dx, a.lunarLander.y + dy, r * 2, 3);
+    ctx.fillRect(a.lunarLander.x + dx + 3, a.lunarLander.y + dy - 2, r, 2);
+  }
+  // Placas de latón guían al jugador desde el centro hacia cada descubrimiento.
+  ctx.fillStyle = '#47351f'; ctx.fillRect(j.x - 10, j.y - 10, 20, 20);
+  ctx.fillStyle = '#e5cc8a'; ctx.fillRect(j.x - 6, j.y - 6, 12, 12);
+}
+
+/** Gabinetes originales de seis siluetas CRT diferentes para el cruce norte. */
+function drawNorthernArcadeCabinet(
+  ctx: CanvasRenderingContext2D,
+  id: NorthArcadeId,
+  wx: number,
+  wy: number,
+  elapsed: number,
+  restored: boolean
+): void {
+  const palettes: Record<NorthArcadeId, { body: string; trim: string; screen: string; glow: string; title: string }> = {
+    breakout: { body: '#ead9ad', trim: '#bd7138', screen: '#16352c', glow: '#fff1a6', title: 'BREAKOUT' },
+    asteroids: { body: '#373d43', trim: '#9ad7c8', screen: '#061923', glow: '#b6fff0', title: 'ASTEROIDS' },
+    seaWolf: { body: '#d6d1b5', trim: '#286b70', screen: '#092c36', glow: '#8df5db', title: 'SEA WOLF' },
+    tank: { body: '#65513a', trim: '#b1a165', screen: '#1d281c', glow: '#d9dc80', title: 'TANK' },
+    lunarLander: { body: '#d4d1c5', trim: '#777b80', screen: '#131a2b', glow: '#f2edc4', title: 'LUNAR' },
+  };
+  const p = palettes[id];
+  ctx.save(); ctx.translate(Math.round(wx), Math.round(wy));
+  ctx.fillStyle = 'rgba(9,10,12,.58)'; ctx.fillRect(-35, 8, 70, 11); ctx.fillRect(-29, 6, 58, 15);
+  ctx.fillStyle = '#34261b'; ctx.fillRect(-36, -2, 72, 12);
+  ctx.fillStyle = '#9e8052'; ctx.fillRect(-33, -1, 66, 9);
+  ctx.fillStyle = '#17191c'; ctx.fillRect(-24, -68, 48, 68);
+  ctx.fillStyle = p.body; ctx.fillRect(-21, -65, 42, 63);
+  ctx.fillStyle = p.trim; ctx.fillRect(-19, -63, 38, 12);
+  ctx.fillStyle = '#201a17'; ctx.fillRect(-18, -61, 36, 8);
+  ctx.fillStyle = p.glow; ctx.font = 'bold 5px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText(p.title, 0, -55);
+  // Sea Wolf tiene el periscopio distintivo; el resto conserva marquesina upright.
+  if (id === 'seaWolf') {
+    ctx.fillStyle = '#25272a'; ctx.fillRect(-12, -78, 24, 10); ctx.fillRect(-8, -70, 16, 8);
+    ctx.fillStyle = '#b3b7a1'; ctx.fillRect(-10, -76, 20, 4);
+  }
+  ctx.fillStyle = '#11171b'; ctx.fillRect(-16, -47, 32, 25);
+  ctx.fillStyle = restored ? '#0f3c2c' : p.screen; ctx.fillRect(-14, -45, 28, 21);
+  ctx.fillStyle = p.glow;
+  if (id === 'breakout') {
+    for (let row = 0; row < 3; row++) for (let col = 0; col < 5; col++) ctx.fillRect(-12 + col * 5, -42 + row * 4, 4, 2);
+    ctx.fillRect(-5, -27, 10, 2); ctx.fillRect(-1, -31, 2, 2);
+  } else if (id === 'asteroids') {
+    ctx.strokeStyle = p.glow; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-8,-38); ctx.lineTo(-4,-43); ctx.lineTo(1,-40); ctx.lineTo(0,-35); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(8,-30); ctx.lineTo(11,-34); ctx.lineTo(14,-30); ctx.closePath(); ctx.stroke();
+    ctx.fillRect(-1,-29,2,4); ctx.fillRect(-4,-27,8,1);
+  } else if (id === 'seaWolf') {
+    ctx.fillRect(-11,-34,22,1); ctx.fillRect(-7,-38,12,2); ctx.fillRect(2,-41,2,13);
+    ctx.strokeStyle = p.glow; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(2,-35,7,Math.PI,Math.PI*2); ctx.stroke();
+  } else if (id === 'tank') {
+    ctx.fillStyle = '#536344'; ctx.fillRect(-11,-41,7,2); ctx.fillRect(4,-36,8,2); ctx.fillRect(-7,-29,9,2);
+    ctx.fillStyle = p.glow; ctx.fillRect(-1,-35,5,5); ctx.fillRect(1,-39,2,4); ctx.fillRect(4,-37,4,1);
+  } else {
+    ctx.fillRect(-2,-43,4,2); ctx.fillRect(-5,-41,10,3); ctx.fillRect(-8,-37,16,1);
+    ctx.fillRect(-6,-32,3,1); ctx.fillRect(4,-29,4,1);
+    const blink = Math.floor(elapsed * 3) % 2;
+    ctx.fillRect(-1,-34 + blink,2,3);
+  }
+  // Control deck, joystick, buttons and side-lit bevels.
+  ctx.fillStyle = '#211b16'; ctx.fillRect(-18, -20, 36, 12);
+  ctx.fillStyle = p.trim; ctx.fillRect(-15, -18, 30, 7);
+  ctx.fillStyle = '#17191c'; ctx.fillRect(-8, -16, 3, 3); ctx.fillRect(4, -16, 3, 2); ctx.fillRect(9, -16, 3, 2);
+  ctx.fillStyle = '#e9d49e'; ctx.fillRect(-7, -18, 1, 3);
+  ctx.fillStyle = p.trim; ctx.fillRect(-21, -63, 2, 59); ctx.fillRect(19, -63, 2, 59);
+  ctx.fillStyle = restored ? '#61db90' : p.glow; ctx.fillRect(-23, 0, 46, 2);
+  ctx.restore();
+}
+
+function drawVolcanicGuard(ctx: CanvasRenderingContext2D, x: number, y: number, elapsed: number, approved: boolean): void {
+  const step = Math.floor(elapsed * 2) % 2;
+  ctx.save();
+  ctx.translate(Math.round(x), Math.round(y));
+  ctx.fillStyle = 'rgba(5, 8, 12, .48)'; ctx.fillRect(-14, 0, 28, 6);
+  // Botas altas y pantalón ignífugo con bandas reflectantes.
+  ctx.fillStyle = '#15191c'; ctx.fillRect(-10, -8 + step, 8, 9); ctx.fillRect(2, -8 - step, 8, 9);
+  ctx.fillStyle = '#f2a51a'; ctx.fillRect(-10, -6 + step, 8, 2); ctx.fillRect(2, -6 - step, 8, 2);
+  ctx.fillStyle = '#351b17'; ctx.fillRect(-11, -25, 22, 20);
+  ctx.fillStyle = '#9b321f'; ctx.fillRect(-10, -24, 20, 18);
+  ctx.fillStyle = '#e66a22'; ctx.fillRect(-8, -23, 16, 14);
+  ctx.fillStyle = '#f7bd35'; ctx.fillRect(-9, -19, 18, 4); ctx.fillRect(-3, -24, 6, 15);
+  ctx.fillStyle = '#22282b'; ctx.fillRect(-14, -23, 5, 15); ctx.fillRect(9, -23, 5, 15);
+  ctx.fillStyle = '#e66a22'; ctx.fillRect(-14, -11, 5, 5); ctx.fillRect(9, -11, 5, 5);
+  // Casco integral, respirador frontal, visor tintado y mangueras laterales.
+  ctx.fillStyle = '#181c20'; ctx.fillRect(-11, -39, 22, 16); ctx.fillRect(-13, -36, 26, 9);
+  ctx.fillStyle = '#e66a22'; ctx.fillRect(-10, -38, 20, 5); ctx.fillRect(-13, -35, 3, 8); ctx.fillRect(10, -35, 3, 8);
+  ctx.fillStyle = '#9fe8e0'; ctx.fillRect(-8, -32, 16, 5);
+  ctx.fillStyle = '#274e52'; ctx.fillRect(-6, -31, 11, 3);
+  ctx.fillStyle = '#d9d6c4'; ctx.fillRect(-5, -25, 10, 5);
+  ctx.fillStyle = '#374348'; ctx.fillRect(-3, -24, 6, 3); ctx.fillRect(-2, -20, 4, 2);
+  ctx.fillStyle = '#f5c34b'; ctx.fillRect(-12, -40, 24, 3); ctx.fillRect(-8, -43, 16, 3);
+  ctx.fillStyle = '#fff0b5'; ctx.fillRect(-8, -42, 5, 1);
+  if (approved) {
+    // Brazo alzado en saludo de aprobación.
+    ctx.fillStyle = '#e66a22'; ctx.fillRect(12, -34, 7, 8); ctx.fillRect(16, -42, 5, 10);
+    ctx.fillStyle = '#f7bd35'; ctx.fillRect(16, -44, 5, 4);
+  } else {
+    ctx.fillStyle = '#c8c4ad'; ctx.fillRect(-3, -16, 6, 3);
+  }
+  ctx.restore();
+}
+
+function drawBreakoutLegendStone(ctx: CanvasRenderingContext2D, x: number, y: number, elapsed: number, extracted: boolean, extracting: boolean): void {
+  ctx.save(); ctx.translate(Math.round(x), Math.round(y));
+  ctx.fillStyle = 'rgba(4, 6, 9, .56)'; ctx.fillRect(-33, 14, 66, 9);
+  // Silueta irregular de basalto, vetas y cristales cobrizos.
+  ctx.fillStyle = '#100d12'; ctx.fillRect(-29, -21, 58, 39); ctx.fillRect(-23, -27, 46, 6); ctx.fillRect(-35, -13, 6, 24); ctx.fillRect(29, -12, 6, 22);
+  ctx.fillStyle = '#352831'; ctx.fillRect(-27, -19, 54, 34); ctx.fillRect(-21, -25, 42, 6); ctx.fillRect(-33, -11, 6, 20); ctx.fillRect(27, -10, 6, 19);
+  ctx.fillStyle = '#58414a'; ctx.fillRect(-22, -22, 18, 4); ctx.fillRect(7, -18, 14, 3); ctx.fillRect(-27, -8, 4, 11);
+  ctx.fillStyle = '#170f14'; ctx.fillRect(-18, -4, 4, 15); ctx.fillRect(8, -1, 3, 12);
+  ctx.fillStyle = '#b84b22'; ctx.fillRect(-20, 0, 2, 7); ctx.fillRect(11, 1, 2, 7);
+  ctx.fillStyle = '#f5bb44'; ctx.fillRect(-27, 8, 4, 3); ctx.fillRect(23, -13, 3, 4); ctx.fillRect(16, 11, 3, 2);
+  const lift = extracting ? 24 + Math.round(Math.sin(elapsed * 9) * 4) : extracted ? 46 : 0;
+  if (!extracted || extracting) {
+    ctx.fillStyle = 'rgba(249, 115, 22, .22)';
+    if (extracting) ctx.fillRect(-16, -54 - lift, 32, 45);
+    ctx.fillStyle = '#17252b'; ctx.fillRect(-4, -27 - lift, 8, 25);
+    ctx.fillStyle = '#50b7c5'; ctx.fillRect(-2, -26 - lift, 4, 21);
+    ctx.fillStyle = '#273038'; ctx.fillRect(-16, -34 - lift, 32, 10);
+    ctx.fillStyle = '#11191e'; ctx.fillRect(-18, -36 - lift, 36, 12);
+    ctx.fillStyle = '#f6c74c'; ctx.fillRect(-15, -33 - lift, 30, 6);
+    ctx.fillStyle = '#fff4bc'; ctx.fillRect(-13, -32 - lift, 26, 2);
+    ctx.fillStyle = '#df7729'; ctx.fillRect(-6, -24 - lift, 12, 4);
+  }
+  ctx.restore();
+}
+
+function drawVolcanicFortressDetails(ctx: CanvasRenderingContext2D, elapsed: number, gateOpen: boolean): void {
+  // Formaciones de basalto en los márgenes del patio, lejos de los pasos y los frentes de las máquinas.
+  const rocks = [
+    { x: 2660, y: 486, s: 1 }, { x: 3128, y: 528, s: 1.2 },
+    { x: 2650, y: 898, s: 1.2 }, { x: 3118, y: 884, s: 1 },
+  ];
+  for (const rock of rocks) {
+    const s = rock.s;
+    ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(rock.x - 22*s, rock.y + 4, 44*s, 8);
+    ctx.fillStyle = '#171319'; ctx.fillRect(rock.x - 18*s, rock.y - 12*s, 36*s, 18*s); ctx.fillRect(rock.x - 11*s, rock.y - 21*s, 23*s, 12*s);
+    ctx.fillStyle = '#503743'; ctx.fillRect(rock.x - 15*s, rock.y - 12*s, 29*s, 14*s); ctx.fillRect(rock.x - 8*s, rock.y - 18*s, 17*s, 7*s);
+    ctx.fillStyle = '#8c5960'; ctx.fillRect(rock.x - 8*s, rock.y - 17*s, 10*s, 2); ctx.fillRect(rock.x - 14*s, rock.y - 8*s, 8*s, 2);
+    ctx.fillStyle = '#f05a27'; ctx.fillRect(rock.x + 5*s, rock.y - 4*s, 2, 6);
+  }
+  // Fisuras pequeñas, de borde amarillo y núcleo incandescente, incrustadas en el basalto.
+  const cracks = [[2700, 512], [3068, 594], [2658, 782], [3090, 846]] as const;
+  for (let i = 0; i < cracks.length; i++) {
+    const [x, y] = cracks[i];
+    ctx.fillStyle = '#170d12'; ctx.fillRect(x, y, 34, 4); ctx.fillRect(x + 12, y - 5, 3, 12);
+    ctx.fillStyle = i % 2 === 0 ? '#e65325' : '#f18725'; ctx.fillRect(x + 2, y + 1, 27, 2); ctx.fillRect(x + 13, y - 3, 2, 9);
+    ctx.fillStyle = '#ffd45b'; ctx.fillRect(x + 6 + (Math.floor(elapsed * 2) % 4), y + 1, 7, 1);
+  }
+  if (!gateOpen) {
+    const gx = VOLCANIC_ARCADE_LAYOUT.accessGateX;
+    ctx.fillStyle = 'rgba(0,0,0,.42)'; ctx.fillRect(gx - 8, 380, 18, 572);
+    ctx.fillStyle = '#20151b'; ctx.fillRect(gx - 5, 368, 10, 592);
+    ctx.fillStyle = '#7b3025'; ctx.fillRect(gx - 2, 368, 4, 592);
+    for (let y = 376; y < 950; y += 40) {
+      ctx.fillStyle = y % 80 === 16 ? '#f7c145' : '#e15b2f';
+      ctx.fillRect(gx - 9, y, 18, 5);
+      ctx.fillStyle = '#130f14'; ctx.fillRect(gx - 4, y + 8, 8, 10);
+    }
+    ctx.fillStyle = '#ffb52f'; ctx.fillRect(gx - 15, 668, 30, 36);
+    ctx.fillStyle = '#20151b'; ctx.fillRect(gx - 12, 671, 24, 30);
+    ctx.fillStyle = '#ffe28a'; ctx.font = 'bold 5px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('ZONA', gx, 682); ctx.fillText('DE RIESGO', gx, 690);
+  }
+}
+
 /**
  * TABLA FLOTANTE DE PONG (1972) ESTILO GBA SCI-FI VINTAGE
  * - Chasis aerodinámico con palas de Pong en los extremos, carcasa marfil/crema con biseles sombreados
@@ -1552,7 +1863,8 @@ function drawPongHoverboard(
   skinColor: string,
   hairColor: string,
   shirtColor: string,
-  reducedMotion: boolean
+  reducedMotion: boolean,
+  appearance?: AvatarAppearance
 ): void {
   const hover = reducedMotion ? 0 : Math.round(Math.sin(elapsed * 5.2) * 2.5);
   const px = Math.round(hx);
@@ -1644,7 +1956,7 @@ function drawPongHoverboard(
       skinColor,
       hairColor,
       shirtColor,
-      { reducedMotion }
+      { reducedMotion, appearance }
     );
   }
 
@@ -2977,6 +3289,12 @@ function drawIslandWoodRailSystem(
     drawWoodenRail(ctx, 3528, 1088, 3528, 1280);
   }
 
+  for (const rail of ISLAND_ROUTE_RAILS) {
+    if (isWorldBoxVisible(rail.x1, rail.y1 - 12, rail.x2 - rail.x1, 24, camX, camY, vw, vh)) {
+      drawWoodenRail(ctx, rail.x1, rail.y1, rail.x2, rail.y2);
+    }
+  }
+
   drawIslandPerimeterRails(ctx, camX, camY, vw, vh);
 }
 
@@ -3564,6 +3882,209 @@ function drawPixelverseBuilding(
   ctx.restore();
 }
 
+/**
+ * EL CASTILLO DEL REY CORRUPTO — Fachada colosal, almenas de basalto, torres centinela,
+ * estandarte oscuro ondeando en la niebla, foso abisal, puente levadizo articulado
+ * y los 4 pedestales de sellos rúnicos (Sol, Luna, Estrella, Rayo).
+ */
+export function drawCastleCorruptoExterior(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  elapsed: number,
+  reducedMotion: boolean,
+  drawbridgeDown: boolean,
+  discoveredSecrets: string[]
+): void {
+  ctx.save();
+  ctx.translate(Math.round(cx), Math.round(cy));
+
+  // 1. Aura de corrupción violeta de Super KOOPA en lo alto del castillo
+  const auraPulse = reducedMotion ? 1 : 0.85 + Math.sin(elapsed * 2.5) * 0.2;
+  const auraGrad = ctx.createRadialGradient(0, -90, 20, 0, -90, 180 * auraPulse);
+  auraGrad.addColorStop(0, 'rgba(168, 85, 247, 0.45)');
+  auraGrad.addColorStop(0.5, 'rgba(236, 72, 153, 0.18)');
+  auraGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = auraGrad;
+  ctx.beginPath();
+  ctx.arc(0, -90, 180 * auraPulse, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Gran cuerpo central de la fortaleza (basalto negro y piedra milenaria)
+  ctx.fillStyle = '#090710';
+  ctx.fillRect(-140, -100, 280, 160);
+  ctx.fillStyle = '#161224';
+  ctx.fillRect(-136, -96, 272, 152);
+
+  // Sillares y bloques de muralla
+  ctx.fillStyle = '#261f38';
+  for (let row = -90; row < 50; row += 16) {
+    for (let col = -130; col < 130; col += 32) {
+      const shift = ((row + 90) / 16) % 2 === 0 ? 0 : 16;
+      ctx.fillRect(col + shift, row, 28, 2);
+    }
+  }
+
+  // 3. Torre Central de la Corona (Keep)
+  ctx.fillStyle = '#090710';
+  ctx.fillRect(-60, -170, 120, 80);
+  ctx.fillStyle = '#1a152b';
+  ctx.fillRect(-56, -166, 112, 74);
+  // Almenas de la torre central
+  ctx.fillStyle = '#2d2448';
+  for (let ax = -56; ax < 56; ax += 18) {
+    ctx.fillRect(ax, -182, 12, 14);
+  }
+
+  // Ventanal gótico de la cima iluminado con fulgor violeta (despacho del trono)
+  const winGlow = reducedMotion ? 0.7 : 0.5 + Math.sin(elapsed * 4) * 0.4;
+  ctx.fillStyle = '#090710';
+  ctx.fillRect(-18, -145, 36, 42);
+  ctx.fillStyle = `rgba(192, 132, 252, ${winGlow})`;
+  ctx.fillRect(-14, -141, 28, 34);
+  ctx.fillStyle = '#fde047';
+  ctx.fillRect(-3, -128, 6, 6);
+
+  // Estandarte oscuro de la fortaleza en lo alto ondeando
+  const flagWave = reducedMotion ? 0 : Math.sin(elapsed * 3.5) * 6;
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(-2, -210, 4, 30);
+  ctx.fillStyle = '#090710';
+  ctx.fillRect(2, -208, 36 + flagWave, 18);
+  ctx.fillStyle = '#581c87';
+  ctx.fillRect(2, -206, 32 + flagWave, 14);
+  ctx.fillStyle = '#ec4899';
+  ctx.fillRect(14 + flagWave * 0.5, -202, 8, 6);
+
+  // 4. Torres centinelas izquierda y derecha
+  const drawTower = (tx: number) => {
+    ctx.fillStyle = '#090710';
+    ctx.fillRect(tx - 36, -140, 72, 170);
+    ctx.fillStyle = '#1e1830';
+    ctx.fillRect(tx - 32, -136, 64, 162);
+    // Almenas
+    ctx.fillStyle = '#32284f';
+    for (let ax = tx - 32; ax < tx + 32; ax += 16) {
+      ctx.fillRect(ax, -150, 10, 12);
+    }
+    // Tronera / aspillera vertical con luz violeta
+    ctx.fillStyle = '#090710';
+    ctx.fillRect(tx - 4, -90, 8, 30);
+    ctx.fillStyle = '#a855f7';
+    ctx.fillRect(tx - 2, -88, 4, 26);
+  };
+  drawTower(-140);
+  drawTower(140);
+
+  // 5. Portón y Rastrillo de entrada
+  ctx.fillStyle = '#090710';
+  ctx.beginPath();
+  ctx.arc(0, 10, 36, Math.PI, 0);
+  ctx.lineTo(36, 60);
+  ctx.lineTo(-36, 60);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#1a1329';
+  ctx.beginPath();
+  ctx.arc(0, 12, 32, Math.PI, 0);
+  ctx.lineTo(32, 60);
+  ctx.lineTo(-32, 60);
+  ctx.closePath();
+  ctx.fill();
+
+  // Rastrillo de hierro
+  ctx.fillStyle = '#0f172a';
+  for (let barX = -26; barX <= 26; barX += 9) {
+    ctx.fillRect(barX, -10, 3, 70);
+  }
+  ctx.fillRect(-28, 16, 56, 3);
+  ctx.fillRect(-28, 36, 56, 3);
+
+  // 6. Foso abisal y Puente Levadizo
+  ctx.fillStyle = '#05040a';
+  ctx.fillRect(-90, 60, 180, 40);
+
+  if (drawbridgeDown) {
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(-32, 60, 64, 40);
+    ctx.fillStyle = '#92400e';
+    ctx.fillRect(-30, 62, 60, 36);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(-32, 72, 64, 3);
+    ctx.fillRect(-32, 86, 64, 3);
+
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-32, 100);
+    ctx.lineTo(-36, 30);
+    ctx.moveTo(32, 100);
+    ctx.lineTo(36, 30);
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = '#451a03';
+    ctx.fillRect(-32, 20, 64, 40);
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-32, 20);
+    ctx.lineTo(-36, 0);
+    ctx.moveTo(32, 20);
+    ctx.lineTo(36, 0);
+    ctx.stroke();
+  }
+
+  // 7. Los 4 Pedestales de Sellos Rúnicos (Sol, Luna, Estrella, Rayo) y Estela de la Clave
+  const seals = [
+    { id: 'castle-seal-sol', x: -112, y: 160, sym: '☀', label: 'SOL', hex: '#f59e0b' },
+    { id: 'castle-seal-luna', x: -62, y: 180, sym: '☾', label: 'LUNA', hex: '#38bdf8' },
+    { id: 'castle-seal-estrella', x: 62, y: 180, sym: '★', label: 'ESTRELLA', hex: '#fde047' },
+    { id: 'castle-seal-rayo', x: 112, y: 160, sym: '⚡', label: 'RAYO', hex: '#c084fc' },
+  ];
+
+  for (const s of seals) {
+    const isLit = discoveredSecrets.includes(s.id);
+    ctx.fillStyle = '#070b14';
+    ctx.fillRect(s.x - 14, s.y - 18, 28, 24);
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(s.x - 12, s.y - 16, 24, 20);
+    ctx.strokeStyle = isLit ? s.hex : '#64748b';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(s.x - 12, s.y - 16, 24, 20);
+
+    ctx.fillStyle = isLit ? s.hex : '#1e293b';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y - 8, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = isLit ? '#ffffff' : '#94a3b8';
+    ctx.font = '900 8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(s.sym, s.x, s.y - 5);
+
+    ctx.font = '700 7px "JetBrains Mono", monospace';
+    ctx.fillText(s.label, s.x, s.y + 16);
+  }
+
+  // Estela Rúnica Central con la pista del acertijo
+  ctx.fillStyle = '#070b14';
+  ctx.fillRect(-18, 170, 36, 32);
+  ctx.fillStyle = '#1e1b2e';
+  ctx.fillRect(-16, 172, 32, 28);
+  ctx.strokeStyle = '#c084fc';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(-16, 172, 32, 28);
+  ctx.fillStyle = '#c084fc';
+  ctx.font = '700 8px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('◈ CLAVE ◈', 0, 186);
+  ctx.font = '700 6px "JetBrains Mono", monospace';
+  ctx.fillText('4 SELLOS', 0, 196);
+
+  ctx.restore();
+}
+
 export interface IslandRenderFrameParams {
   ctx: CanvasRenderingContext2D;
   vw: number;
@@ -3585,17 +4106,21 @@ export interface IslandRenderFrameParams {
     interactAnim?: number;
   };
   flight: {
-    type: 'none' | 'pong-to-garganta' | 'garganta-to-pong' | 'shuttle-landing';
+    type: 'none' | 'pong-to-garganta' | 'garganta-to-pong' | 'shuttle-landing' | 'hoverboard';
     elapsed: number;
     duration: number;
   };
   skinColor: string;
   hairColor: string;
   shirtColor: string;
+  appearance?: AvatarAppearance;
   pongRestored: boolean;
+  breakoutRestored: boolean;
   glitchTrailCleared: boolean;
   invadersRestored: boolean;
   invadersCabinetUnlocked: boolean;
+  volcanicPassageOpen: boolean;
+  breakoutSwordExtracting: boolean;
   southShortcutActive: boolean;
   allUnlocked: boolean;
   progressState: PixelverseProgressState;
@@ -3619,10 +4144,14 @@ export function renderIsland70sFrame(params: IslandRenderFrameParams): void {
     skinColor,
     hairColor,
     shirtColor,
+    appearance,
     pongRestored,
+    breakoutRestored,
     glitchTrailCleared,
     invadersRestored,
     invadersCabinetUnlocked,
+    volcanicPassageOpen,
+    breakoutSwordExtracting,
     southShortcutActive,
     allUnlocked,
     progressState,
@@ -3833,6 +4362,10 @@ export function renderIsland70sFrame(params: IslandRenderFrameParams): void {
     southShortcutActive,
     glitchTrailCleared
   );
+  drawVolcanicFortressDetails(ctx, elapsed, volcanicPassageOpen);
+  if (isWorldBoxVisible(1560, -580, 760, 760, camX, camY, vw, vh)) {
+    drawNorthernArcadeDistrict(ctx, elapsed);
+  }
 
   // 4. COMPOSICIÓN AMBIENTAL ARTESANAL POR SECTOR
   // 4A. Arroyo cristalino y puente de madera hacia el Claro de Pong (1972)
@@ -4626,7 +5159,8 @@ export function renderIsland70sFrame(params: IslandRenderFrameParams): void {
       skinColor,
       hairColor,
       shirtColor,
-      reducedMotion
+      reducedMotion,
+      appearance
     );
     drawPongHoverboard(
       ctx,
@@ -4638,7 +5172,8 @@ export function renderIsland70sFrame(params: IslandRenderFrameParams): void {
       skinColor,
       hairColor,
       shirtColor,
-      reducedMotion
+      reducedMotion,
+      appearance
     );
   }
 
@@ -4834,6 +5369,25 @@ export function renderIsland70sFrame(params: IslandRenderFrameParams): void {
     );
   }
 
+  // 6C. EL CASTILLO DEL REY CORRUPTO (CUMBRE SEPTENTRIONAL)
+  const castleX = 1952;
+  const castleY = -680;
+  if (isWorldBoxVisible(castleX - 220, castleY - 240, 440, 480, camX, camY, vw, vh)) {
+    const drawbridgeDown =
+      allUnlocked ||
+      progressState.rpg.discoveredSecretIds.includes('castle-drawbridge-lowered') ||
+      progressState.rpg.solvedPuzzleIds.includes('puzzle-sellos-castillo');
+    drawCastleCorruptoExterior(
+      ctx,
+      castleX,
+      castleY,
+      elapsed,
+      reducedMotion,
+      drawbridgeDown,
+      progressState.rpg.discoveredSecretIds
+    );
+  }
+
   // 7. CAPAS DE PROFUNDIDAD CON ORDENAMIENTO Y (Y-SORTING)
   // Permite que Pixel pase detrás de copas de árboles, farolas, tejados y arcos cuando está al norte,
   // y delante cuando camina al sur de su base.
@@ -4865,6 +5419,47 @@ export function renderIsland70sFrame(params: IslandRenderFrameParams): void {
         draw: () => drawSignalWindmill(ctx, mill.x, mill.y, elapsed, reducedMotion),
       });
     }
+  }
+
+  const northernArcades: { id: NorthArcadeId; x: number; y: number; restored: boolean }[] = [
+    { id: 'seaWolf', ...NORTH_ARCADE_LAYOUT.arcades.seaWolf, restored: Boolean(progressState.games['sea-wolf']?.memoryUnlocked) || allUnlocked },
+    { id: 'tank', ...NORTH_ARCADE_LAYOUT.arcades.tank, restored: Boolean(progressState.games['tank']?.memoryUnlocked) || allUnlocked },
+    { id: 'lunarLander', ...NORTH_ARCADE_LAYOUT.arcades.lunarLander, restored: Boolean(progressState.games['lunar-lander']?.memoryUnlocked) || allUnlocked },
+  ];
+  for (const arcade of northernArcades) {
+    if (!isWorldBoxVisible(arcade.x - 54, arcade.y - 90, 108, 120, camX, camY, vw, vh)) continue;
+    ySortedDrawables.push({
+      sortY: arcade.y,
+      draw: () => drawNorthernArcadeCabinet(ctx, arcade.id, arcade.x, arcade.y, elapsed, arcade.restored),
+    });
+  }
+
+  const volcanicArcades: { id: 'asteroids' | 'breakout'; x: number; y: number; restored: boolean }[] = [
+    { id: 'asteroids', ...VOLCANIC_ARCADE_LAYOUT.asteroids, restored: Boolean(progressState.games['asteroids']?.memoryUnlocked) || allUnlocked },
+    { id: 'breakout', ...VOLCANIC_ARCADE_LAYOUT.breakout, restored: Boolean(progressState.games['breakout']?.memoryUnlocked) || allUnlocked },
+  ];
+  for (const arcade of volcanicArcades) {
+    if (!isWorldBoxVisible(arcade.x - 54, arcade.y - 90, 108, 120, camX, camY, vw, vh)) continue;
+    ySortedDrawables.push({
+      sortY: arcade.y,
+      draw: () => drawNorthernArcadeCabinet(ctx, arcade.id, arcade.x, arcade.y, elapsed, arcade.restored),
+    });
+  }
+
+  if (isWorldBoxVisible(VOLCANIC_ARCADE_LAYOUT.breakoutStone.x - 44, VOLCANIC_ARCADE_LAYOUT.breakoutStone.y - 50, 88, 84, camX, camY, vw, vh)) {
+    const swordClaimed = breakoutRestored && progressState.rpg.discoveredSecretIds.includes('breakout-sword-extracted');
+    ySortedDrawables.push({
+      sortY: VOLCANIC_ARCADE_LAYOUT.breakoutStone.y + 18,
+      draw: () => drawBreakoutLegendStone(ctx, VOLCANIC_ARCADE_LAYOUT.breakoutStone.x, VOLCANIC_ARCADE_LAYOUT.breakoutStone.y, elapsed, swordClaimed, breakoutSwordExtracting),
+    });
+  }
+
+  if (isWorldBoxVisible(VOLCANIC_ARCADE_LAYOUT.guard.x - 24, VOLCANIC_ARCADE_LAYOUT.guard.y - 48, 48, 58, camX, camY, vw, vh)) {
+    const guardApproved = allUnlocked || progressState.island70s.talkedNpcIds.includes(VOLCANIC_GUARD_ID);
+    ySortedDrawables.push({
+      sortY: VOLCANIC_ARCADE_LAYOUT.guard.y,
+      draw: () => drawVolcanicGuard(ctx, VOLCANIC_ARCADE_LAYOUT.guard.x, VOLCANIC_ARCADE_LAYOUT.guard.y, elapsed, guardApproved),
+    });
   }
 
   if (
@@ -4980,7 +5575,7 @@ export function renderIsland70sFrame(params: IslandRenderFrameParams): void {
 
   // Jugador Pixel integrado en el ordenamiento de profundidad cuando camina en tierra
   const playerFlyingHover =
-    flight.type === 'pong-to-garganta' || flight.type === 'garganta-to-pong';
+    flight.type === 'pong-to-garganta' || flight.type === 'garganta-to-pong' || flight.type === 'hoverboard';
   if (
     !playerFlyingHover &&
     (flight.type !== 'shuttle-landing' || flight.elapsed / flight.duration >= 0.72)
@@ -5005,6 +5600,7 @@ export function renderIsland70sFrame(params: IslandRenderFrameParams): void {
             equippedCosmetic: progressState.rpg.equippedCosmetic,
             lanternActive: progressState.rpg.lanternActive,
             interactAnim: player.interactAnim,
+            appearance,
           }
         ),
     });
@@ -5021,13 +5617,14 @@ export function renderIsland70sFrame(params: IslandRenderFrameParams): void {
       ctx,
       player.x,
       player.y,
-      flight.type === 'pong-to-garganta' ? -0.18 : 0.18,
+      flight.type === 'pong-to-garganta' ? -0.18 : flight.type === 'garganta-to-pong' ? 0.18 : 0,
       true,
       elapsed,
       skinColor,
       hairColor,
       shirtColor,
-      reducedMotion
+      reducedMotion,
+      appearance
     );
   }
 
@@ -5099,7 +5696,7 @@ export function renderIsland70sFrame(params: IslandRenderFrameParams): void {
   }
 
   // Etiqueta flotante de interacción [E] con marco propio de PIXELVERSE (obsidiana + bronce)
-  if (prompt && flight.type === 'none') {
+  if (prompt && (flight.type === 'none' || flight.type === 'hoverboard')) {
     const py = Math.round(prompt.y - 54 + (animFrame4 % 2 === 0 ? 0 : -2));
     const px = Math.round(prompt.x);
     ctx.save();
